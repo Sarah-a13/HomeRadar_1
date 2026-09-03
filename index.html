@@ -385,6 +385,7 @@
 
         function App() {
             const [currentUser, setCurrentUser] = useState(null);
+            const [authChecked, setAuthChecked] = useState(false);
             const [showAuthModal, setShowAuthModal] = useState(false);
             const [authMode, setAuthMode] = useState('signup');
             const [signupForm, setSignupForm] = useState({ name: '', email: '', password: '' });
@@ -433,6 +434,36 @@
                 }
                 return cityMatches(trimmed, prop.city || '');
             };
+
+            // Restore the session on refresh: a token in localStorage means the user was
+            // logged in, so re-fetch their account instead of dropping them back to the
+            // landing page. If the token is missing/expired, clear it and show sign-in as usual.
+            useEffect(() => {
+                const restoreSession = async () => {
+                    if (!authToken) { setAuthChecked(true); return; }
+                    try {
+                        const response = await fetch(`${API_URL}/api/users/profile`, {
+                            headers: { 'Authorization': `Bearer ${authToken}` }
+                        });
+                        if (response.ok) {
+                            const data = await response.json();
+                            setCurrentUser({
+                                id: data.id,
+                                name: data.first_name || 'User',
+                                email: data.email,
+                            });
+                        } else {
+                            authToken = null;
+                            localStorage.removeItem('homeradar_token');
+                        }
+                    } catch (error) {
+                        console.error('Error restoring session:', error);
+                    } finally {
+                        setAuthChecked(true);
+                    }
+                };
+                restoreSession();
+            }, []);
 
             useEffect(() => {
                 if (currentUser) {
@@ -842,6 +873,15 @@
                 }
             };
 
+            // Avoid flashing the logged-out landing page while a saved session is still being restored.
+            if (!authChecked) {
+                return (
+                    <div className="min-h-screen bg-white flex items-center justify-center">
+                        <div className="w-10 h-10 border-4 border-gray-100 border-t-indigo-600 rounded-full animate-spin"></div>
+                    </div>
+                );
+            }
+
             // Landing Page
             if (!currentUser) {
                 return (
@@ -1117,7 +1157,11 @@
                                 <p className="text-xs text-gray-500">{currentUser?.email}</p>
                             </div>
                             <button 
-                                onClick={() => setCurrentUser(null)}
+                                onClick={() => {
+                                    authToken = null;
+                                    localStorage.removeItem('homeradar_token');
+                                    setCurrentUser(null);
+                                }}
                                 className="w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition text-sm"
                             >
                                 Sign Out
