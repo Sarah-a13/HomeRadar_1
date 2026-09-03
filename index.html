@@ -61,7 +61,7 @@
         const { useState, useEffect } = React;
         
         // 🔥 API Configuration
-        const API_URL = 'http://localhost:3001';
+        const API_URL = 'https://homeradar-backend.onrender.com';
         let authToken = localStorage.getItem('homeradar_token');
 
         const mockProperties = [
@@ -135,7 +135,7 @@
             const [shortlist, setShortlist] = useState([]);
             const [feedbackHistory, setFeedbackHistory] = useState([]);
 
-            const allCities = ['Copenhagen', 'Frederiksberg', 'Aarhus', 'Odense', 'Aalborg'];
+            const allCities = ['Copenhagen', 'Frederiksberg', 'Valby', 'Aarhus', 'Odense', 'Aalborg'];
             const allFeatures = ['Garden', 'Natural Light', 'Family-friendly', 'Modern', 'Parking', 'Balcony', 'Waterfront'];
 
             // Danish real-estate data uses native city names with postal-district suffixes
@@ -354,7 +354,7 @@
                             'Authorization': `Bearer ${authToken}`
                         },
                         body: JSON.stringify({
-                            preferences: tempPreferences
+                            preferences: { ...tempPreferences, city: tempPreferences.cities[0] }
                         })
                     });
 
@@ -373,7 +373,7 @@
                     setSelectedView('dashboard');
                     
                     // 🔥 Show message about scraping starting
-                    alert('✅ Preferences saved!\n\n🔥 Backend is now searching Facebook Marketplace and Instagram for matching properties...\n\nCheck back in a few seconds for new listings!');
+                    alert('✅ Preferences saved!\n\n🔥 Backend is now searching local agents\' "coming soon" listings and Instagram for matching properties...\n\nCheck back in a few seconds for new listings!');
                 } catch (error) {
                     console.error('Setup error:', error);
                     alert(`Connection error: ${error.message}`);
