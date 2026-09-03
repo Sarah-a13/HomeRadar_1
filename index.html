@@ -345,8 +345,13 @@
                                     { label: 'Market', val: breakdown.market },
                                     { label: 'Value', val: breakdown.value }
                                 ].map(f => (
-                                    <div key={f.label} className="flex items-center gap-3" title={FACTOR_EXPLANATIONS[f.label]}>
-                                        <div className="w-16 text-xs text-gray-500 border-b border-dotted border-gray-400 cursor-help">{f.label}</div>
+                                    <div key={f.label} className="flex items-center gap-3 relative group">
+                                        <div className="w-16 text-xs text-gray-500 border-b border-dotted border-gray-400 cursor-help">
+                                            {f.label}
+                                            <div className="hidden group-hover:block absolute left-0 bottom-full mb-2 w-56 bg-gray-900 text-white text-xs leading-snug rounded-lg p-3 shadow-xl z-20">
+                                                {FACTOR_EXPLANATIONS[f.label]}
+                                            </div>
+                                        </div>
                                         <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
                                             <div className="bg-indigo-500 h-full" style={{width: `${f.val}%`}}></div>
                                         </div>
@@ -1418,8 +1423,13 @@
                                                 { label: 'Market', val: breakdown.market },
                                                 { label: 'Value', val: breakdown.value }
                                             ].map(f => (
-                                                <div key={f.label} className="flex items-center gap-3" title={FACTOR_EXPLANATIONS[f.label]}>
-                                                    <div className="w-16 text-xs text-gray-500 border-b border-dotted border-gray-400 cursor-help">{f.label}</div>
+                                                <div key={f.label} className="flex items-center gap-3 relative group">
+                                                    <div className="w-16 text-xs text-gray-500 border-b border-dotted border-gray-400 cursor-help">
+                                                        {f.label}
+                                                        <div className="hidden group-hover:block absolute left-0 bottom-full mb-2 w-56 bg-gray-900 text-white text-xs leading-snug rounded-lg p-3 shadow-xl z-20">
+                                                            {FACTOR_EXPLANATIONS[f.label]}
+                                                        </div>
+                                                    </div>
                                                     <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
                                                         <div className="bg-indigo-500 h-full" style={{width: `${f.val}%`}}></div>
                                                     </div>
