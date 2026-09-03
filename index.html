@@ -72,6 +72,18 @@
             Value: 'How the price per m\u00b2 compares to similar properties in HomeRadar \u2013 priced below average scores higher.'
         };
 
+        // Fresh defaults for a logged-out/new session - reused on initial mount and on sign-out so
+        // a previous user's preferences/weights can't leak into the next login in the same tab.
+        const DEFAULT_PREFERENCES = {
+            budget: { min: 2000000, max: 8000000 },
+            cities: ['Copenhagen', 'Frederiksberg'],
+            sizeMode: 'size',
+            minSize: 80,
+            minRooms: null,
+            features: ['Garden', 'Natural Light', 'Family-friendly'],
+            weights: { budget: 1.0, location: 1.0, market: 1.0, value: 1.0 }
+        };
+
         const mockProperties = [
             {
                 id: 1,
@@ -391,15 +403,7 @@
             const [signupForm, setSignupForm] = useState({ name: '', email: '', password: '' });
             const [loginForm, setLoginForm] = useState({ email: '', password: '' });
             const [preferencesSetup, setPreferencesSetup] = useState(false);
-            const [preferences, setPreferences] = useState({
-                budget: { min: 2000000, max: 8000000 },
-                cities: ['Copenhagen', 'Frederiksberg'],
-                sizeMode: 'size',
-                minSize: 80,
-                minRooms: null,
-                features: ['Garden', 'Natural Light', 'Family-friendly'],
-                weights: { budget: 1.0, location: 1.0, market: 1.0, value: 1.0 }
-            });
+            const [preferences, setPreferences] = useState({ ...DEFAULT_PREFERENCES });
             const [selectedView, setSelectedView] = useState('dashboard');
             const [shortlist, setShortlist] = useState([]);
             const [feedbackHistory, setFeedbackHistory] = useState([]);
@@ -1161,6 +1165,11 @@
                                     authToken = null;
                                     localStorage.removeItem('homeradar_token');
                                     setCurrentUser(null);
+                                    setPreferences({ ...DEFAULT_PREFERENCES });
+                                    setShortlist([]);
+                                    setFeedbackHistory([]);
+                                    setSelectedProperty(null);
+                                    setApiProperties([]);
                                 }}
                                 className="w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition text-sm"
                             >
