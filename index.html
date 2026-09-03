@@ -58,7 +58,11 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState } = React;
+        const { useState, useEffect } = React;
+        
+        // 🔥 API Configuration
+        const API_URL = 'https://homeradar-backend.onrender.com';
+        let authToken = localStorage.getItem('homeradar_token');
 
         const mockProperties = [
             {
@@ -131,38 +135,166 @@
             const allCities = ['Copenhagen', 'Frederiksberg', 'Aarhus', 'Odense', 'Aalborg'];
             const allFeatures = ['Garden', 'Natural Light', 'Family-friendly', 'Modern', 'Parking', 'Balcony', 'Waterfront'];
 
-            const calculateScore = (prop) => {
-                const hardConstraints = {
-                    budget: prop.price >= preferences.budget.min && prop.price <= preferences.budget.max,
-                    city: preferences.cities.includes(prop.city)
+            // 🔥 Fetch properties from API
+            const [apiProperties, setApiProperties] = useState([]);
+            useEffect(() => {
+                const fetchProperties = async () => {
+                    try {
+                        const response = await fetch(`${API_URL}/api/properties`);
+                        if (response.ok) {
+                            const data = await response.json();
+                            console.log('Fetched properties:', data.data);
+                            setApiProperties(data.data || []);
+                        }
+                    } catch (error) {
+                        console.error('Error fetching properties:', error);
+                    }
                 };
-                return hardConstraints.budget && hardConstraints.city ? prop.score : 0;
+                
+                if (currentUser) {
+                    fetchProperties();
+                    // Refresh every 30 seconds (for scraping updates)
+                    const interval = setInterval(fetchProperties, 30000);
+                    return () => clearInterval(interval);
+                }
+            }, [currentUser]);
+
+            const calculateScore = (prop) => {
+                // Handle both API properties (address, price fields) and mock properties
+                const propPrice = prop.price || 0;
+                const propCity = prop.city || '';
+                
+                const hardConstraints = {
+                    budget: propPrice >= preferences.budget.min && propPrice <= preferences.budget.max,
+                    city: preferences.cities.includes(propCity)
+                };
+                
+                // Return score from mock data or generate a default score
+                if (prop.score) return hardConstraints.budget && hardConstraints.city ? prop.score : 0;
+                
+                // For API properties, generate a score (0-100)
+                if (hardConstraints.budget && hardConstraints.city) {
+                    return Math.floor(75 + Math.random() * 25); // 75-100
+                }
+                return 0;
             };
 
-            const handleSignup = () => {
+            const handleSignup = async () => {
                 if (signupForm.name && signupForm.email && signupForm.password) {
-                    setCurrentUser({ name: signupForm.name, email: signupForm.email });
-                    setPreferencesSetup(true);
-                    setShowAuthModal(false);
-                    setSignupForm({ name: '', email: '', password: '' });
-                    setSetupStep('budget');
+                    try {
+                        const response = await fetch(`${API_URL}/api/users/register`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                first_name: signupForm.name,
+                                email: signupForm.email,
+                                password: signupForm.password
+                            })
+                        });
+                        
+                        if (!response.ok) {
+                            const error = await response.json();
+                            alert(`Signup failed: ${error.error || 'Unknown error'}`);
+                            return;
+                        }
+
+                        const data = await response.json();
+                        authToken = data.token;
+                        localStorage.setItem('homeradar_token', authToken);
+                        
+                        setCurrentUser({ 
+                            name: signupForm.name, 
+                            email: signupForm.email,
+                            id: data.id 
+                        });
+                        setPreferencesSetup(true);
+                        setShowAuthModal(false);
+                        setSignupForm({ name: '', email: '', password: '' });
+                        setSetupStep('budget');
+                        alert('✅ Account created! Now set up your preferences.');
+                    } catch (error) {
+                        console.error('Signup error:', error);
+                        alert(`Connection error: ${error.message}`);
+                    }
+                } else {
+                    alert('Please fill in all fields');
                 }
             };
 
-            const handleLogin = () => {
+            const handleLogin = async () => {
                 if (loginForm.email && loginForm.password) {
-                    setCurrentUser({ name: 'Sarah Anderson', email: loginForm.email });
-                    setShowAuthModal(false);
-                    setLoginForm({ email: '', password: '' });
+                    try {
+                        const response = await fetch(`${API_URL}/api/users/login`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                email: loginForm.email,
+                                password: loginForm.password
+                            })
+                        });
+                        
+                        if (!response.ok) {
+                            const error = await response.json();
+                            alert(`Login failed: ${error.error || 'Invalid credentials'}`);
+                            return;
+                        }
+
+                        const data = await response.json();
+                        authToken = data.token;
+                        localStorage.setItem('homeradar_token', authToken);
+                        
+                        setCurrentUser({ 
+                            name: data.first_name || 'User', 
+                            email: loginForm.email,
+                            id: data.id
+                        });
+                        setShowAuthModal(false);
+                        setLoginForm({ email: '', password: '' });
+                        alert('✅ Logged in successfully!');
+                    } catch (error) {
+                        console.error('Login error:', error);
+                        alert(`Connection error: ${error.message}`);
+                    }
+                } else {
+                    alert('Please enter email and password');
                 }
             };
 
-            const handleCompleteSetup = () => {
-                setPreferences({
-                    ...tempPreferences
-                });
-                setPreferencesSetup(false);
-                setSelectedView('dashboard');
+            const handleCompleteSetup = async () => {
+                if (!tempPreferences.cities.length) {
+                    alert('Please select at least one city');
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`${API_URL}/api/users/preferences`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${authToken}`
+                        },
+                        body: JSON.stringify({
+                            preferences: tempPreferences
+                        })
+                    });
+
+                    if (!response.ok) {
+                        const error = await response.json();
+                        alert(`Failed to save preferences: ${error.error}`);
+                        return;
+                    }
+
+                    const data = await response.json();
+                    setPreferences(tempPreferences);
+                    setPreferencesSetup(false);
+                    setSelectedView('dashboard');
+                    
+                    // 🔥 Show message about scraping starting
+                    alert('✅ Preferences saved!\n\n🔥 Backend is now searching Facebook Marketplace and Instagram for matching properties...\n\nCheck back in a few seconds for new listings!');
+                } catch (error) {
+                    console.error('Setup error:', error);
+                    alert(`Connection error: ${error.message}`);
+                }
             };
 
             // Landing Page
@@ -553,7 +685,7 @@
                                 <div>
                                     <h2 className="text-xl font-semibold text-gray-900 mb-6">Matched Properties</h2>
                                     <div className="grid grid-cols-2 gap-8">
-                                        {mockProperties.map(prop => {
+                                        {(apiProperties.length > 0 ? apiProperties : mockProperties).map(prop => {
                                             const score = calculateScore(prop);
                                             if (score === 0) return null;
                                             return (
@@ -580,15 +712,16 @@
                                                             </div>
                                                             <div>
                                                                 <p className="text-xs text-gray-500 uppercase mb-1">Size</p>
-                                                                <p className="font-semibold text-gray-900">{prop.size} m²</p>
+                                                                <p className="font-semibold text-gray-900">{prop.sqm || prop.size || 'N/A'} m²</p>
                                                             </div>
                                                             <div>
                                                                 <p className="text-xs text-gray-500 uppercase mb-1">Rooms</p>
-                                                                <p className="font-semibold text-gray-900">{prop.rooms}</p>
+                                                                <p className="font-semibold text-gray-900">{prop.bedrooms || prop.rooms || 'N/A'}</p>
                                                             </div>
                                                         </div>
 
-                                                        <p className="text-gray-600 text-sm mb-6">{prop.description}</p>
+                                                        <p className="text-gray-600 text-sm mb-6">{prop.description || 'Property details'}</p>
+                                                        <div className="text-xs text-gray-500 mb-4">Source: {prop.source || 'N/A'}</div>
 
                                                         <button className="w-full px-4 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition">
                                                             View Details
