@@ -132,7 +132,7 @@
             });
             const [selectedView, setSelectedView] = useState('dashboard');
 
-            const allCities = ['Copenhagen', 'Frederiksberg', 'Aarhus', 'Odense', 'Aalborg'];
+            const allCities = ['Copenhagen', 'Frederiksberg', 'Valby', 'Aarhus', 'Odense', 'Aalborg'];
             const allFeatures = ['Garden', 'Natural Light', 'Family-friendly', 'Modern', 'Parking', 'Balcony', 'Waterfront'];
 
             // 🔥 Fetch properties from API
@@ -165,7 +165,7 @@
                 const propCity = prop.city || '';
                 
                 const hardConstraints = {
-                    budget: propPrice >= preferences.budget.min && propPrice <= preferences.budget.max,
+                    budget: propPrice === 0 || (propPrice >= preferences.budget.min && propPrice <= preferences.budget.max),
                     city: preferences.cities.includes(propCity)
                 };
                 
@@ -274,7 +274,7 @@
                             'Authorization': `Bearer ${authToken}`
                         },
                         body: JSON.stringify({
-                            preferences: tempPreferences
+                            preferences: { ...tempPreferences, city: tempPreferences.cities[0] }
                         })
                     });
 
@@ -290,7 +290,7 @@
                     setSelectedView('dashboard');
                     
                     // 🔥 Show message about scraping starting
-                    alert('✅ Preferences saved!\n\n🔥 Backend is now searching Facebook Marketplace and Instagram for matching properties...\n\nCheck back in a few seconds for new listings!');
+                    alert('✅ Preferences saved!\n\n🔥 Backend is now searching local agents\' "coming soon" listings and Instagram for matching properties...\n\nCheck back in a few seconds for new listings!');
                 } catch (error) {
                     console.error('Setup error:', error);
                     alert(`Connection error: ${error.message}`);
