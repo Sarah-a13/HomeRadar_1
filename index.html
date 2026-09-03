@@ -112,6 +112,175 @@
             }
         ];
 
+        // Single-page criteria form: reused for first-time setup and for editing preferences from the Profile page.
+        function CriteriaForm({ initial, onSave, submitLabel, allCities, allFeatures }) {
+            const [budgetMin, setBudgetMin] = useState(initial.budget?.min || 0);
+            const [noUpperLimit, setNoUpperLimit] = useState((initial.budget?.max || 0) >= 50000000);
+            const [budgetMax, setBudgetMax] = useState((initial.budget?.max || 0) >= 50000000 ? 50000000 : (initial.budget?.max || 5000000));
+            const [sizeMode, setSizeMode] = useState(initial.sizeMode || 'size');
+            const [minSize, setMinSize] = useState(initial.minSize || 80);
+            const [minRooms, setMinRooms] = useState(initial.minRooms || 3);
+            const [areas, setAreas] = useState(initial.cities || []);
+            const [areaInput, setAreaInput] = useState('');
+            const [features, setFeatures] = useState(initial.features || []);
+            const [customFeature, setCustomFeature] = useState('');
+
+            const addArea = () => {
+                const val = areaInput.trim();
+                if (val && !areas.includes(val)) setAreas([...areas, val]);
+                setAreaInput('');
+            };
+            const removeArea = (a) => setAreas(areas.filter(x => x !== a));
+            const toggleSuggestedArea = (c) => setAreas(areas.includes(c) ? areas.filter(x => x !== c) : [...areas, c]);
+
+            const toggleFeature = (f) => setFeatures(prev => prev.includes(f) ? prev.filter(x => x !== f) : [...prev, f]);
+            const addCustomFeature = () => {
+                const val = customFeature.trim();
+                if (val && !features.includes(val)) setFeatures([...features, val]);
+                setCustomFeature('');
+            };
+
+            const handleSave = () => {
+                if (areas.length === 0) {
+                    alert('Please add at least one area of interest (city name or postal code)');
+                    return;
+                }
+                onSave({
+                    budget: { min: Number(budgetMin) || 0, max: noUpperLimit ? 999000000 : (Number(budgetMax) || 50000000) },
+                    sizeMode,
+                    minSize: sizeMode === 'size' ? (Number(minSize) || 0) : null,
+                    minRooms: sizeMode === 'rooms' ? (Number(minRooms) || 0) : null,
+                    cities: areas,
+                    features
+                });
+            };
+
+            return (
+                <div className="space-y-8">
+                    {/* Budget */}
+                    <div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-1">Budget (DKK)</h3>
+                        <p className="text-sm text-gray-500 mb-4">Mandatory. Range from 0 to 50,000,000+.</p>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Minimum</label>
+                                <input type="number" min="0" max="50000000" step="100000" value={budgetMin} onChange={(e) => setBudgetMin(e.target.value)} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Maximum</label>
+                                <input type="number" min="0" max="50000000" step="100000" value={budgetMax} disabled={noUpperLimit} onChange={(e) => setBudgetMax(e.target.value)} className="w-full px-4 py-3 border border-gray-300 rounded-lg disabled:bg-gray-100 disabled:text-gray-400" />
+                            </div>
+                        </div>
+                        <label className="flex items-center gap-2 mt-3 text-sm text-gray-600">
+                            <input type="checkbox" checked={noUpperLimit} onChange={(e) => setNoUpperLimit(e.target.checked)} />
+                            No upper limit (50M+)
+                        </label>
+                    </div>
+
+                    {/* Size or Rooms */}
+                    <div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-1">Minimum Size</h3>
+                        <p className="text-sm text-gray-500 mb-4">Mandatory. Choose square metres or number of rooms.</p>
+                        <div className="flex gap-6 mb-3">
+                            <label className="flex items-center gap-2 text-sm text-gray-700">
+                                <input type="radio" name="sizeMode" checked={sizeMode === 'size'} onChange={() => setSizeMode('size')} />
+                                Square metres
+                            </label>
+                            <label className="flex items-center gap-2 text-sm text-gray-700">
+                                <input type="radio" name="sizeMode" checked={sizeMode === 'rooms'} onChange={() => setSizeMode('rooms')} />
+                                Number of rooms
+                            </label>
+                        </div>
+                        {sizeMode === 'size' ? (
+                            <input type="number" min="0" value={minSize} onChange={(e) => setMinSize(e.target.value)} placeholder="e.g. 80" className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+                        ) : (
+                            <input type="number" min="1" value={minRooms} onChange={(e) => setMinRooms(e.target.value)} placeholder="e.g. 3" className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+                        )}
+                    </div>
+
+                    {/* Area of interest */}
+                    <div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-1">Area of Interest</h3>
+                        <p className="text-sm text-gray-500 mb-4">Type a city name or postal code, or pick a suggestion below.</p>
+                        <div className="flex gap-2 mb-3">
+                            <input
+                                type="text"
+                                value={areaInput}
+                                onChange={(e) => setAreaInput(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addArea(); } }}
+                                placeholder="e.g. Copenhagen or 2100"
+                                className="flex-1 px-4 py-3 border border-gray-300 rounded-lg"
+                            />
+                            <button onClick={addArea} className="px-6 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition">Add</button>
+                        </div>
+                        <div className="flex flex-wrap gap-2 mb-3">
+                            {allCities.map(c => (
+                                <button
+                                    key={c}
+                                    onClick={() => toggleSuggestedArea(c)}
+                                    className={`px-3 py-1 rounded-full text-sm font-medium transition ${areas.includes(c) ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                                >
+                                    {c}
+                                </button>
+                            ))}
+                        </div>
+                        {areas.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                                {areas.map(a => (
+                                    <span key={a} className="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-2">
+                                        {a}
+                                        <button onClick={() => removeArea(a)} className="text-indigo-400 hover:text-indigo-700">×</button>
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Soft preferences */}
+                    <div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-1">Nice-to-Have Features</h3>
+                        <p className="text-sm text-gray-500 mb-4">Optional. Pick suggestions or type your own.</p>
+                        <div className="flex flex-wrap gap-2 mb-3">
+                            {allFeatures.map(f => (
+                                <button
+                                    key={f}
+                                    onClick={() => toggleFeature(f)}
+                                    className={`px-3 py-1 rounded-full text-sm font-medium transition ${features.includes(f) ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                                >
+                                    {f}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="flex gap-2 mb-3">
+                            <input
+                                type="text"
+                                value={customFeature}
+                                onChange={(e) => setCustomFeature(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomFeature(); } }}
+                                placeholder="Add your own (e.g. Sea view)"
+                                className="flex-1 px-4 py-3 border border-gray-300 rounded-lg"
+                            />
+                            <button onClick={addCustomFeature} className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition">Add</button>
+                        </div>
+                        {features.filter(f => !allFeatures.includes(f)).length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                                {features.filter(f => !allFeatures.includes(f)).map(f => (
+                                    <span key={f} className="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-2">
+                                        {f}
+                                        <button onClick={() => toggleFeature(f)} className="text-indigo-400 hover:text-indigo-700">×</button>
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    <button onClick={handleSave} className="w-full px-6 py-4 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition text-lg">
+                        {submitLabel}
+                    </button>
+                </div>
+            );
+        }
+
         function App() {
             const [currentUser, setCurrentUser] = useState(null);
             const [showAuthModal, setShowAuthModal] = useState(false);
@@ -119,21 +288,22 @@
             const [signupForm, setSignupForm] = useState({ name: '', email: '', password: '' });
             const [loginForm, setLoginForm] = useState({ email: '', password: '' });
             const [preferencesSetup, setPreferencesSetup] = useState(false);
-            const [setupStep, setSetupStep] = useState('budget');
-            const [tempPreferences, setTempPreferences] = useState({
-                budget: { min: 2000000, max: 5000000 },
-                cities: [],
-                features: []
-            });
             const [preferences, setPreferences] = useState({
                 budget: { min: 2000000, max: 8000000 },
                 cities: ['Copenhagen', 'Frederiksberg'],
+                sizeMode: 'size',
+                minSize: 80,
+                minRooms: null,
                 features: ['Garden', 'Natural Light', 'Family-friendly'],
                 weights: { budget: 1.0, location: 1.0, market: 1.0, value: 1.0, trust: 1.0 }
             });
             const [selectedView, setSelectedView] = useState('dashboard');
             const [shortlist, setShortlist] = useState([]);
             const [feedbackHistory, setFeedbackHistory] = useState([]);
+            const [forgotEmail, setForgotEmail] = useState('');
+            const [resetInfo, setResetInfo] = useState(null);
+            const [resetPasswordForm, setResetPasswordForm] = useState({ token: '', newPassword: '', confirmPassword: '' });
+            const [profileForm, setProfileForm] = useState({ name: '', email: '', currentPassword: '', newPassword: '', confirmPassword: '' });
 
             const allCities = ['Copenhagen', 'Frederiksberg', 'Valby', 'Aarhus', 'Odense', 'Aalborg'];
             const allFeatures = ['Garden', 'Natural Light', 'Family-friendly', 'Modern', 'Parking', 'Balcony', 'Waterfront'];
@@ -149,6 +319,23 @@
                 const alias = CITY_ALIASES[preferredCity];
                 return alias ? propLower.startsWith(alias.toLowerCase()) : false;
             };
+
+            // Accepts either a city name (matched via cityMatches) or a Danish postal code (matched by prefix
+            // against the property's postal_code), so users can type either into the area-of-interest field.
+            const matchesArea = (area, prop) => {
+                const trimmed = (area || '').trim();
+                if (!trimmed) return false;
+                if (/^\d+$/.test(trimmed)) {
+                    return (prop.postal_code || '').startsWith(trimmed);
+                }
+                return cityMatches(trimmed, prop.city || '');
+            };
+
+            useEffect(() => {
+                if (currentUser) {
+                    setProfileForm(prev => ({ ...prev, name: currentUser.name || '', email: currentUser.email || '' }));
+                }
+            }, [currentUser]);
 
             // 🔥 Fetch properties from API
             const [apiProperties, setApiProperties] = useState([]);
@@ -187,7 +374,7 @@
                     budget = Math.round(100 - position * 25); // cheaper end of the range scores higher
                 }
 
-                const location = preferences.cities.some(c => cityMatches(c, prop.city || '')) ? 100 : 40;
+                const location = preferences.cities.some(c => matchesArea(c, prop)) ? 100 : 40;
 
                 let market = 60;
                 if (prop.listing_date) {
@@ -215,14 +402,20 @@
             const calculateScore = (prop) => {
                 // Handle both API properties (address, price fields) and mock properties
                 const propPrice = prop.price || 0;
-                const propCity = prop.city || '';
+                const propSqm = parseFloat(prop.sqm) || prop.size || 0;
+                const propRooms = prop.bedrooms || prop.rooms || 0;
+
+                const sizeOk = preferences.sizeMode === 'rooms'
+                    ? (!preferences.minRooms || propRooms === 0 || propRooms >= preferences.minRooms)
+                    : (!preferences.minSize || propSqm === 0 || propSqm >= preferences.minSize);
 
                 const hardConstraints = {
                     budget: propPrice === 0 || (propPrice >= preferences.budget.min && propPrice <= preferences.budget.max),
-                    city: preferences.cities.some(c => cityMatches(c, propCity))
+                    area: preferences.cities.some(c => matchesArea(c, prop)),
+                    size: sizeOk
                 };
 
-                if (!hardConstraints.budget || !hardConstraints.city) return 0;
+                if (!hardConstraints.budget || !hardConstraints.area || !hardConstraints.size) return 0;
 
                 // Mock properties carry a canned score; real properties get the computed breakdown
                 if (prop.score) return prop.score;
@@ -290,7 +483,6 @@
                         setPreferencesSetup(true);
                         setShowAuthModal(false);
                         setSignupForm({ name: '', email: '', password: '' });
-                        setSetupStep('budget');
                         alert('✅ Account created! Now set up your preferences.');
                     } catch (error) {
                         console.error('Signup error:', error);
@@ -340,12 +532,10 @@
                 }
             };
 
-            const handleCompleteSetup = async () => {
-                if (!tempPreferences.cities.length) {
-                    alert('Please select at least one city');
-                    return;
-                }
-
+            // Shared save path for both first-time setup and later edits from the Profile page.
+            // Merges into existing preferences (rather than replacing wholesale) so learned weights survive.
+            const applyCriteria = async (criteria, navigateToDashboard) => {
+                const merged = { ...preferences, ...criteria };
                 try {
                     const response = await fetch(`${API_URL}/api/users/preferences`, {
                         method: 'PUT',
@@ -354,7 +544,7 @@
                             'Authorization': `Bearer ${authToken}`
                         },
                         body: JSON.stringify({
-                            preferences: { ...tempPreferences, city: tempPreferences.cities[0] }
+                            preferences: { ...merged, city: merged.cities[0] }
                         })
                     });
 
@@ -364,18 +554,117 @@
                         return;
                     }
 
-                    const data = await response.json();
-                    setPreferences({
-                        ...tempPreferences,
-                        weights: { budget: 1.0, location: 1.0, market: 1.0, value: 1.0, trust: 1.0 }
-                    });
-                    setPreferencesSetup(false);
-                    setSelectedView('dashboard');
-                    
-                    // 🔥 Show message about scraping starting
-                    alert('✅ Preferences saved!\n\n🔥 Backend is now searching local agents\' "coming soon" listings and Instagram for matching properties...\n\nCheck back in a few seconds for new listings!');
+                    setPreferences(merged);
+
+                    if (navigateToDashboard) {
+                        setPreferencesSetup(false);
+                        setSelectedView('dashboard');
+                        alert('✅ Preferences saved!\n\n🔥 Backend is now searching local agents\' "coming soon" listings and Instagram for matching properties...\n\nCheck back in a few seconds for new listings!');
+                    } else {
+                        alert('✅ Preferences updated!');
+                    }
                 } catch (error) {
-                    console.error('Setup error:', error);
+                    console.error('Save preferences error:', error);
+                    alert(`Connection error: ${error.message}`);
+                }
+            };
+
+            const handleCompleteSetup = (criteria) => applyCriteria(criteria, true);
+            const handleUpdatePreferences = (criteria) => applyCriteria(criteria, false);
+
+            const handleForgotPassword = async () => {
+                if (!forgotEmail) {
+                    alert('Please enter your email');
+                    return;
+                }
+                try {
+                    const response = await fetch(`${API_URL}/api/users/forgot-password`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: forgotEmail })
+                    });
+                    const data = await response.json();
+                    if (!response.ok) {
+                        alert(data.error || 'Failed to request password reset');
+                        return;
+                    }
+                    setResetInfo({ token: data.resetToken, expiresAt: data.expiresAt });
+                    setResetPasswordForm({ token: data.resetToken, newPassword: '', confirmPassword: '' });
+                    setAuthMode('reset');
+                } catch (error) {
+                    console.error('Forgot password error:', error);
+                    alert(`Connection error: ${error.message}`);
+                }
+            };
+
+            const handleResetPassword = async () => {
+                if (!resetPasswordForm.newPassword || resetPasswordForm.newPassword.length < 8) {
+                    alert('Password must be at least 8 characters');
+                    return;
+                }
+                if (resetPasswordForm.newPassword !== resetPasswordForm.confirmPassword) {
+                    alert('Passwords do not match');
+                    return;
+                }
+                try {
+                    const response = await fetch(`${API_URL}/api/users/reset-password`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ token: resetPasswordForm.token, newPassword: resetPasswordForm.newPassword })
+                    });
+                    const data = await response.json();
+                    if (!response.ok) {
+                        alert(data.error || 'Failed to reset password');
+                        return;
+                    }
+                    alert('✅ Password reset! You can now sign in with your new password.');
+                    setResetInfo(null);
+                    setResetPasswordForm({ token: '', newPassword: '', confirmPassword: '' });
+                    setForgotEmail('');
+                    setAuthMode('login');
+                } catch (error) {
+                    console.error('Reset password error:', error);
+                    alert(`Connection error: ${error.message}`);
+                }
+            };
+
+            const handleUpdateProfile = async () => {
+                const body = { first_name: profileForm.name, email: profileForm.email };
+                if (profileForm.newPassword || profileForm.currentPassword) {
+                    if (!profileForm.currentPassword) {
+                        alert('Enter your current password to set a new one');
+                        return;
+                    }
+                    if (profileForm.newPassword.length < 8) {
+                        alert('New password must be at least 8 characters');
+                        return;
+                    }
+                    if (profileForm.newPassword !== profileForm.confirmPassword) {
+                        alert('New passwords do not match');
+                        return;
+                    }
+                    body.current_password = profileForm.currentPassword;
+                    body.new_password = profileForm.newPassword;
+                }
+                try {
+                    const response = await fetch(`${API_URL}/api/users/profile`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${authToken}`
+                        },
+                        body: JSON.stringify(body)
+                    });
+                    const data = await response.json();
+                    if (!response.ok) {
+                        alert(data.error || 'Failed to update profile');
+                        return;
+                    }
+                    setCurrentUser(prev => ({ ...prev, name: data.user.first_name, email: data.user.email }));
+                    setProfileForm(prev => ({ ...prev, currentPassword: '', newPassword: '', confirmPassword: '' }));
+                    alert('✅ Profile updated!');
+                } catch (error) {
+                    console.error('Profile update error:', error);
                     alert(`Connection error: ${error.message}`);
                 }
             };
@@ -447,12 +736,12 @@
                                 <div className="bg-white rounded-xl p-8 max-w-md w-full mx-4 border border-gray-200">
                                     <div className="flex justify-between items-center mb-8">
                                         <h2 className="text-2xl font-semibold text-gray-900">
-                                            {authMode === 'login' ? 'Sign In' : 'Create Account'}
+                                            {authMode === 'login' ? 'Sign In' : authMode === 'signup' ? 'Create Account' : authMode === 'forgot' ? 'Forgot Password' : 'Reset Password'}
                                         </h2>
                                         <button onClick={() => setShowAuthModal(false)} className="text-2xl text-gray-400 hover:text-gray-600">×</button>
                                     </div>
 
-                                    {authMode === 'login' ? (
+                                    {authMode === 'login' && (
                                         <div className="space-y-4">
                                             <input
                                                 type="email"
@@ -468,6 +757,9 @@
                                                 onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
                                                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-gray-400"
                                             />
+                                            <button onClick={() => setAuthMode('forgot')} className="text-sm text-gray-500 hover:text-gray-900 hover:underline">
+                                                Forgot password?
+                                            </button>
                                             <button onClick={handleLogin} className="w-full px-4 py-3 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition">
                                                 Sign In
                                             </button>
@@ -478,7 +770,9 @@
                                                 </button>
                                             </p>
                                         </div>
-                                    ) : (
+                                    )}
+
+                                    {authMode === 'signup' && (
                                         <div className="space-y-4">
                                             <input
                                                 type="text"
@@ -512,6 +806,60 @@
                                             </p>
                                         </div>
                                     )}
+
+                                    {authMode === 'forgot' && (
+                                        <div className="space-y-4">
+                                            <p className="text-sm text-gray-600">Enter your email and we'll generate a password reset link for you.</p>
+                                            <input
+                                                type="email"
+                                                placeholder="Email"
+                                                value={forgotEmail}
+                                                onChange={(e) => setForgotEmail(e.target.value)}
+                                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-gray-400"
+                                            />
+                                            <button onClick={handleForgotPassword} className="w-full px-4 py-3 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition">
+                                                Send Reset Link
+                                            </button>
+                                            <p className="text-center text-gray-600 text-sm">
+                                                <button onClick={() => setAuthMode('login')} className="text-gray-900 font-semibold hover:underline">
+                                                    Back to Sign In
+                                                </button>
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    {authMode === 'reset' && (
+                                        <div className="space-y-4">
+                                            {resetInfo && (
+                                                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-xs text-amber-800 break-all">
+                                                    <p className="font-semibold mb-1">Demo mode — no email service configured</p>
+                                                    <p>A reset token has been generated and pre-filled below. In production this would be emailed to you instead of shown here.</p>
+                                                </div>
+                                            )}
+                                            <input
+                                                type="password"
+                                                placeholder="New password"
+                                                value={resetPasswordForm.newPassword}
+                                                onChange={(e) => setResetPasswordForm({ ...resetPasswordForm, newPassword: e.target.value })}
+                                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-gray-400"
+                                            />
+                                            <input
+                                                type="password"
+                                                placeholder="Confirm new password"
+                                                value={resetPasswordForm.confirmPassword}
+                                                onChange={(e) => setResetPasswordForm({ ...resetPasswordForm, confirmPassword: e.target.value })}
+                                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-gray-400"
+                                            />
+                                            <button onClick={handleResetPassword} className="w-full px-4 py-3 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition">
+                                                Reset Password
+                                            </button>
+                                            <p className="text-center text-gray-600 text-sm">
+                                                <button onClick={() => setAuthMode('login')} className="text-gray-900 font-semibold hover:underline">
+                                                    Back to Sign In
+                                                </button>
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -519,38 +867,8 @@
                 );
             }
 
-            // Preferences Setup
+            // Preferences Setup (single page — budget, size/rooms, area of interest, nice-to-haves)
             if (preferencesSetup) {
-                const handleNextStep = () => {
-                    if (setupStep === 'budget') setSetupStep('cities');
-                    else if (setupStep === 'cities') setSetupStep('features');
-                    else if (setupStep === 'features') setSetupStep('review');
-                };
-
-                const handleBackStep = () => {
-                    if (setupStep === 'cities') setSetupStep('budget');
-                    else if (setupStep === 'features') setSetupStep('cities');
-                    else if (setupStep === 'review') setSetupStep('features');
-                };
-
-                const toggleCity = (city) => {
-                    setTempPreferences({
-                        ...tempPreferences,
-                        cities: tempPreferences.cities.includes(city)
-                            ? tempPreferences.cities.filter(c => c !== city)
-                            : [...tempPreferences.cities, city]
-                    });
-                };
-
-                const toggleFeature = (feature) => {
-                    setTempPreferences({
-                        ...tempPreferences,
-                        features: tempPreferences.features.includes(feature)
-                            ? tempPreferences.features.filter(f => f !== feature)
-                            : [...tempPreferences.features, feature]
-                    });
-                };
-
                 return (
                     <div className="min-h-screen bg-white p-8">
                         <div className="max-w-2xl mx-auto">
@@ -560,125 +878,13 @@
                             </div>
 
                             <div className="bg-white border border-gray-200 rounded-xl p-12">
-                                {setupStep === 'budget' && (
-                                    <div className="space-y-8">
-                                        <div>
-                                            <h2 className="text-2xl font-semibold text-gray-900 mb-2">Budget</h2>
-                                            <p className="text-gray-600 mb-6">What is your maximum budget?</p>
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-3">Maximum Budget: DKK {(tempPreferences.budget.max / 1000000).toFixed(1)}M</label>
-                                            <input
-                                                type="range"
-                                                min="1000000"
-                                                max="10000000"
-                                                step="100000"
-                                                value={tempPreferences.budget.max}
-                                                onChange={(e) => setTempPreferences({
-                                                    ...tempPreferences,
-                                                    budget: { ...tempPreferences.budget, max: parseInt(e.target.value) }
-                                                })}
-                                                className="w-full"
-                                            />
-                                        </div>
-                                    </div>
-                                )}
-
-                                {setupStep === 'cities' && (
-                                    <div className="space-y-8">
-                                        <div>
-                                            <h2 className="text-2xl font-semibold text-gray-900 mb-2">Preferred Areas</h2>
-                                            <p className="text-gray-600 mb-6">Which areas are you interested in?</p>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-3">
-                                            {allCities.map(city => (
-                                                <button
-                                                    key={city}
-                                                    onClick={() => toggleCity(city)}
-                                                    className={`p-4 rounded-lg border-2 font-medium transition ${
-                                                        tempPreferences.cities.includes(city)
-                                                            ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
-                                                            : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
-                                                    }`}
-                                                >
-                                                    {city}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {setupStep === 'features' && (
-                                    <div className="space-y-8">
-                                        <div>
-                                            <h2 className="text-2xl font-semibold text-gray-900 mb-2">Must-Have Features</h2>
-                                            <p className="text-gray-600 mb-6">Select the features that matter most to you.</p>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-3">
-                                            {allFeatures.map(feature => (
-                                                <button
-                                                    key={feature}
-                                                    onClick={() => toggleFeature(feature)}
-                                                    className={`p-4 rounded-lg border-2 font-medium transition ${
-                                                        tempPreferences.features.includes(feature)
-                                                            ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
-                                                            : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
-                                                    }`}
-                                                >
-                                                    {feature}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {setupStep === 'review' && (
-                                    <div className="space-y-8">
-                                        <div>
-                                            <h2 className="text-2xl font-semibold text-gray-900 mb-6">Review Your Preferences</h2>
-                                        </div>
-                                        <div className="space-y-4">
-                                            <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
-                                                <h3 className="font-semibold text-gray-900 mb-2">Budget</h3>
-                                                <p className="text-gray-600">Maximum DKK {(tempPreferences.budget.max / 1000000).toFixed(1)}M</p>
-                                            </div>
-                                            <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
-                                                <h3 className="font-semibold text-gray-900 mb-2">Preferred Areas</h3>
-                                                <p className="text-gray-600">{tempPreferences.cities.join(', ') || 'None selected'}</p>
-                                            </div>
-                                            <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
-                                                <h3 className="font-semibold text-gray-900 mb-2">Must-Have Features</h3>
-                                                <p className="text-gray-600">{tempPreferences.features.join(', ') || 'None selected'}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="flex gap-4 mt-8">
-                                {setupStep !== 'budget' && (
-                                    <button 
-                                        onClick={handleBackStep}
-                                        className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition"
-                                    >
-                                        Back
-                                    </button>
-                                )}
-                                {setupStep !== 'review' ? (
-                                    <button 
-                                        onClick={handleNextStep}
-                                        className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition"
-                                    >
-                                        Continue
-                                    </button>
-                                ) : (
-                                    <button 
-                                        onClick={handleCompleteSetup}
-                                        className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition"
-                                    >
-                                        Start Browsing
-                                    </button>
-                                )}
+                                <CriteriaForm
+                                    initial={{ budget: { min: 2000000, max: 5000000 }, cities: [], sizeMode: 'size', minSize: 80, minRooms: 3, features: [] }}
+                                    onSave={handleCompleteSetup}
+                                    submitLabel="🚀 Start Browsing!"
+                                    allCities={allCities}
+                                    allFeatures={allFeatures}
+                                />
                             </div>
                         </div>
                     </div>
@@ -703,7 +909,8 @@
                                 { label: 'Dashboard', view: 'dashboard' },
                                 { label: 'Properties', view: 'properties' },
                                 { label: 'Saved', view: 'saved' },
-                                { label: 'Messages', view: 'messages' }
+                                { label: 'Messages', view: 'messages' },
+                                { label: 'Profile', view: 'profile' }
                             ].map(item => (
                                 <button
                                     key={item.view}
@@ -769,7 +976,7 @@
                                     <div className="grid grid-cols-2 gap-6">
                                         <div className="card-subtle bg-white rounded-xl p-8">
                                             <h3 className="text-sm font-semibold text-gray-500 uppercase mb-3">Budget</h3>
-                                            <p className="text-2xl font-semibold text-gray-900">DKK {(preferences.budget.max/1000000).toFixed(0)}M</p>
+                                            <p className="text-2xl font-semibold text-gray-900">DKK {(preferences.budget.min/1000000).toFixed(1)}M \u2013 {preferences.budget.max >= 50000000 ? '50M+' : (preferences.budget.max/1000000).toFixed(1) + 'M'}</p>
                                         </div>
                                         <div className="card-subtle bg-white rounded-xl p-8">
                                             <h3 className="text-sm font-semibold text-gray-500 uppercase mb-3">Areas</h3>
@@ -956,6 +1163,51 @@
                             <div className="p-12">
                                 <h1 className="text-3xl font-bold text-gray-900">Messages</h1>
                                 <p className="text-gray-600 mt-4">Your messages will appear here.</p>
+                            </div>
+                        )}
+
+                        {selectedView === 'profile' && (
+                            <div className="p-12 max-w-3xl">
+                                <h1 className="text-3xl font-bold text-gray-900 mb-8">Profile</h1>
+
+                                <div className="card-subtle bg-white rounded-xl p-8 mb-8">
+                                    <h2 className="text-lg font-semibold text-gray-900 mb-6">Account Details</h2>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                                            <input type="text" value={profileForm.name} onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                                            <input type="email" value={profileForm.email} onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="card-subtle bg-white rounded-xl p-8 mb-8">
+                                    <h2 className="text-lg font-semibold text-gray-900 mb-2">Change Password</h2>
+                                    <p className="text-xs text-gray-500 mb-6">Leave blank if you don't want to change your password.</p>
+                                    <div className="space-y-4">
+                                        <input type="password" placeholder="Current password" value={profileForm.currentPassword} onChange={(e) => setProfileForm({ ...profileForm, currentPassword: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+                                        <input type="password" placeholder="New password" value={profileForm.newPassword} onChange={(e) => setProfileForm({ ...profileForm, newPassword: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+                                        <input type="password" placeholder="Confirm new password" value={profileForm.confirmPassword} onChange={(e) => setProfileForm({ ...profileForm, confirmPassword: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
+                                    </div>
+                                </div>
+
+                                <button onClick={handleUpdateProfile} className="px-6 py-3 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition mb-12">
+                                    Save Account Changes
+                                </button>
+
+                                <div className="card-subtle bg-white rounded-xl p-8">
+                                    <h2 className="text-lg font-semibold text-gray-900 mb-6">Search Preferences</h2>
+                                    <CriteriaForm
+                                        initial={preferences}
+                                        onSave={handleUpdatePreferences}
+                                        submitLabel="Save Preferences"
+                                        allCities={allCities}
+                                        allFeatures={allFeatures}
+                                    />
+                                </div>
                             </div>
                         )}
                     </div>
