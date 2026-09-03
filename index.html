@@ -335,8 +335,7 @@
                                     { label: 'Budget', val: breakdown.budget },
                                     { label: 'Location', val: breakdown.location },
                                     { label: 'Market', val: breakdown.market },
-                                    { label: 'Value', val: breakdown.value },
-                                    { label: 'Trust', val: breakdown.trust }
+                                    { label: 'Value', val: breakdown.value }
                                 ].map(f => (
                                     <div key={f.label} className="flex items-center gap-3">
                                         <div className="w-16 text-xs text-gray-500">{f.label}</div>
@@ -385,7 +384,7 @@
                 minSize: 80,
                 minRooms: null,
                 features: ['Garden', 'Natural Light', 'Family-friendly'],
-                weights: { budget: 1.0, location: 1.0, market: 1.0, value: 1.0, trust: 1.0 }
+                weights: { budget: 1.0, location: 1.0, market: 1.0, value: 1.0 }
             });
             const [selectedView, setSelectedView] = useState('dashboard');
             const [shortlist, setShortlist] = useState([]);
@@ -519,9 +518,7 @@
                         : 60;
                 }
 
-                const trust = prop.verified ? 100 : 55;
-
-                return { budget, location, market, value, trust };
+                return { budget, location, market, value };
             };
 
             const calculateScore = (prop) => {
@@ -548,11 +545,10 @@
                 const breakdown = calculateBreakdown(prop);
                 const w = preferences.weights;
                 const weighted = (
-                    breakdown.budget * w.budget * 30 +
-                    breakdown.location * w.location * 20 +
+                    breakdown.budget * w.budget * 35 +
+                    breakdown.location * w.location * 25 +
                     breakdown.market * w.market * 20 +
-                    breakdown.value * w.value * 15 +
-                    breakdown.trust * w.trust * 15
+                    breakdown.value * w.value * 20
                 ) / 100;
                 return Math.max(1, Math.min(100, Math.round(weighted)));
             };
@@ -567,8 +563,7 @@
                     budget: adjust(preferences.weights.budget),
                     location: adjust(preferences.weights.location),
                     market: adjust(preferences.weights.market),
-                    value: adjust(preferences.weights.value),
-                    trust: adjust(preferences.weights.trust)
+                    value: adjust(preferences.weights.value)
                 };
                 const updatedPreferences = { ...preferences, weights: updatedWeights, feedbackHistory: updatedHistory };
                 setPreferences(updatedPreferences);
@@ -1156,7 +1151,7 @@
                                     <div className="card-subtle bg-white rounded-xl p-8">
                                         <h3 className="text-sm font-semibold text-gray-500 uppercase mb-4">Preference Learning</h3>
                                         <p className="text-xs text-gray-500 mb-4">Weight multipliers adjust ±5% each time you rate a match.</p>
-                                        <div className="grid grid-cols-5 gap-3">
+                                        <div className="grid grid-cols-4 gap-3">
                                             {Object.entries(preferences.weights).map(([key, val]) => (
                                                 <div key={key} className="bg-indigo-50 rounded-lg p-3 text-center">
                                                     <div className="text-[10px] font-semibold text-gray-500 uppercase mb-1">{key}</div>
@@ -1392,8 +1387,7 @@
                                                 { label: 'Budget', val: breakdown.budget },
                                                 { label: 'Location', val: breakdown.location },
                                                 { label: 'Market', val: breakdown.market },
-                                                { label: 'Value', val: breakdown.value },
-                                                { label: 'Trust', val: breakdown.trust }
+                                                { label: 'Value', val: breakdown.value }
                                             ].map(f => (
                                                 <div key={f.label} className="flex items-center gap-3">
                                                     <div className="w-16 text-xs text-gray-500">{f.label}</div>
