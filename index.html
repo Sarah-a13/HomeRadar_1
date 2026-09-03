@@ -337,19 +337,51 @@
                 }
             }, [currentUser]);
 
+            // Load any previously-saved preferences (including learned weights and feedback
+            // history) so they survive a page refresh instead of resetting every session.
+            useEffect(() => {
+                const loadSavedProfile = async () => {
+                    try {
+                        const response = await fetch(`${API_URL}/api/users/profile`, {
+                            headers: { 'Authorization': `Bearer ${authToken}` }
+                        });
+                        if (response.ok) {
+                            const data = await response.json();
+                            if (data.preferences) {
+                                setPreferences(prev => ({ ...prev, ...data.preferences }));
+                                if (Array.isArray(data.preferences.feedbackHistory)) {
+                                    setFeedbackHistory(data.preferences.feedbackHistory);
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error loading saved profile:', error);
+                    }
+                };
+                if (currentUser) loadSavedProfile();
+            }, [currentUser]);
+
             // 🔥 Fetch properties from API
             const [apiProperties, setApiProperties] = useState([]);
+            const [propertiesLoading, setPropertiesLoading] = useState(false);
+            const [propertiesError, setPropertiesError] = useState(null);
             useEffect(() => {
                 const fetchProperties = async () => {
                     try {
+                        setPropertiesLoading(true);
                         const response = await fetch(`${API_URL}/api/properties`);
                         if (response.ok) {
                             const data = await response.json();
-                            console.log('Fetched properties:', data.data);
                             setApiProperties(data.data || []);
+                            setPropertiesError(null);
+                        } else {
+                            setPropertiesError('Failed to load properties from the server.');
                         }
                     } catch (error) {
                         console.error('Error fetching properties:', error);
+                        setPropertiesError('Could not reach the server. Check your connection and try again.');
+                    } finally {
+                        setPropertiesLoading(false);
                     }
                 };
                 
@@ -433,19 +465,27 @@
             };
 
             const handleFeedback = (prop, relevant) => {
-                setFeedbackHistory(prev => [{ id: prop.id, relevant, timestamp: new Date() }, ...prev]);
-                if (relevant) {
-                    setPreferences(prev => ({
-                        ...prev,
-                        weights: {
-                            budget: prev.weights.budget + 0.05,
-                            location: prev.weights.location + 0.05,
-                            market: prev.weights.market + 0.05,
-                            value: prev.weights.value + 0.05,
-                            trust: prev.weights.trust + 0.05
-                        }
-                    }));
-                }
+                const updatedHistory = [{ id: prop.id, relevant, timestamp: new Date() }, ...feedbackHistory].slice(0, 50);
+                setFeedbackHistory(updatedHistory);
+
+                const direction = relevant ? 1 : -1;
+                const adjust = (w) => Math.max(0.5, Math.min(2.0, w + direction * 0.05));
+                const updatedWeights = {
+                    budget: adjust(preferences.weights.budget),
+                    location: adjust(preferences.weights.location),
+                    market: adjust(preferences.weights.market),
+                    value: adjust(preferences.weights.value),
+                    trust: adjust(preferences.weights.trust)
+                };
+                const updatedPreferences = { ...preferences, weights: updatedWeights, feedbackHistory: updatedHistory };
+                setPreferences(updatedPreferences);
+
+                // Persist so learned weights and feedback survive a page refresh
+                fetch(`${API_URL}/api/users/preferences`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+                    body: JSON.stringify({ preferences: { ...updatedPreferences, city: updatedPreferences.cities[0] } })
+                }).catch(error => console.error('Error saving feedback:', error));
             };
 
             const toggleShortlist = (prop) => {
@@ -586,6 +626,12 @@
                     const data = await response.json();
                     if (!response.ok) {
                         alert(data.error || 'Failed to request password reset');
+                        return;
+                    }
+                    if (!data.resetToken) {
+                        // Generic response (no matching account) - deliberately indistinguishable
+                        // from the success case to avoid leaking which emails are registered.
+                        alert(data.message || 'If an account exists with that email, a password reset has been generated.');
                         return;
                     }
                     setResetInfo({ token: data.resetToken, expiresAt: data.expiresAt });
@@ -1028,6 +1074,26 @@
                                 {/* Properties */}
                                 <div>
                                     <h2 className="text-xl font-semibold text-gray-900 mb-6">Matched Properties</h2>
+
+                                    {propertiesError && (
+                                        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-6 text-sm">
+                                            {propertiesError}
+                                        </div>
+                                    )}
+
+                                    {propertiesLoading && apiProperties.length === 0 && (
+                                        <div className="text-center py-16 text-gray-500">
+                                            Loading properties…
+                                        </div>
+                                    )}
+
+                                    {!propertiesLoading && !propertiesError && matchedProperties.length === 0 && (
+                                        <div className="text-center py-16 text-gray-500 border border-dashed border-gray-300 rounded-xl">
+                                            <p className="font-medium mb-1">No properties match your criteria yet.</p>
+                                            <p className="text-sm">Try widening your budget, size, or area of interest in your Profile.</p>
+                                        </div>
+                                    )}
+
                                     <div className="grid grid-cols-2 gap-8">
                                         {(apiProperties.length > 0 ? apiProperties : mockProperties).map(prop => {
                                             const score = calculateScore(prop);
