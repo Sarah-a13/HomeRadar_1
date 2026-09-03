@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HomeRadar - Real Estate Intelligence</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Lora:wght@400;500;600&display=swap');
+        
+        body {
+            font-family: 'Outfit', sans-serif;
+        }
+        
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 600;
+        }
+        
+        .card-subtle { 
+            transition: all 0.2s ease;
+            border: 1px solid #e0e7ff;
+        }
+        
+        .card-subtle:hover {
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+            border-color: #c7d2fe;
+        }
+        
+        .sidebar-nav-item {
+            transition: all 0.2s ease;
+        }
+        
+        .sidebar-nav-item.active {
+            background-color: #f0f4ff;
+            border-left: 3px solid #4f46e5;
+            padding-left: calc(1rem - 3px);
+        }
+        
+        .progress-circle {
+            background: conic-gradient(#4f46e5 0deg 331.2deg, #e0e7ff 331.2deg 360deg);
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+            border: 1px solid #e5e7eb;
+        }
+        
+        .property-image {
+            background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+        }
+    </style>
+</head>
+<body class="bg-white">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        const mockProperties = [
+            {
+                id: 1,
+                address: "Valby Langgade 123",
+                city: "Copenhagen",
+                price: 2500000,
+                size: 145,
+                score: 91,
+                rooms: 5,
+                bathrooms: 2,
+                description: "Beautiful family home with a large garden and excellent natural light.",
+                features: ["Garden", "Natural Light", "Family-friendly"],
+                marketStatus: "Coming Soon",
+                daysToMarket: 7,
+                source: "Estate Agent"
+            },
+            {
+                id: 2,
+                address: "Vigerslev Alle 45",
+                city: "Copenhagen",
+                price: 2500000,
+                size: 152,
+                score: 89,
+                rooms: 4,
+                bathrooms: 1,
+                description: "Charming townhouse in a quiet, well-maintained neighborhood.",
+                features: ["Garden", "Parking"],
+                marketStatus: "Off-Market",
+                daysToMarket: 0,
+                source: "Private Network"
+            },
+            {
+                id: 3,
+                address: "Godthaabsvej 178",
+                city: "Copenhagen",
+                price: 2300000,
+                size: 118,
+                score: 85,
+                rooms: 4,
+                bathrooms: 1,
+                description: "Bright and spacious residence close to shops and green spaces.",
+                features: ["Balcony", "Modern"],
+                marketStatus: "Coming Soon",
+                daysToMarket: 14,
+                source: "Facebook"
+            }
+        ];
+
+        function App() {
+            const [currentUser, setCurrentUser] = useState(null);
+            const [showAuthModal, setShowAuthModal] = useState(false);
+            const [authMode, setAuthMode] = useState('signup');
+            const [signupForm, setSignupForm] = useState({ name: '', email: '', password: '' });
+            const [loginForm, setLoginForm] = useState({ email: '', password: '' });
+            const [preferencesSetup, setPreferencesSetup] = useState(false);
+            const [setupStep, setSetupStep] = useState('budget');
+            const [tempPreferences, setTempPreferences] = useState({
+                budget: { min: 2000000, max: 5000000 },
+                cities: [],
+                features: []
+            });
+            const [preferences, setPreferences] = useState({
+                budget: { min: 2000000, max: 8000000 },
+                cities: ['Copenhagen', 'Frederiksberg'],
+                features: ['Garden', 'Natural Light', 'Family-friendly']
+            });
+            const [selectedView, setSelectedView] = useState('dashboard');
+
+            const allCities = ['Copenhagen', 'Frederiksberg', 'Aarhus', 'Odense', 'Aalborg'];
+            const allFeatures = ['Garden', 'Natural Light', 'Family-friendly', 'Modern', 'Parking', 'Balcony', 'Waterfront'];
+
+            const calculateScore = (prop) => {
+                const hardConstraints = {
+                    budget: prop.price >= preferences.budget.min && prop.price <= preferences.budget.max,
+                    city: preferences.cities.includes(prop.city)
+                };
+                return hardConstraints.budget && hardConstraints.city ? prop.score : 0;
+            };
+
+            const handleSignup = () => {
+                if (signupForm.name && signupForm.email && signupForm.password) {
+                    setCurrentUser({ name: signupForm.name, email: signupForm.email });
+                    setPreferencesSetup(true);
+                    setShowAuthModal(false);
+                    setSignupForm({ name: '', email: '', password: '' });
+                    setSetupStep('budget');
+                }
+            };
+
+            const handleLogin = () => {
+                if (loginForm.email && loginForm.password) {
+                    setCurrentUser({ name: 'Sarah Anderson', email: loginForm.email });
+                    setShowAuthModal(false);
+                    setLoginForm({ email: '', password: '' });
+                }
+            };
+
+            const handleCompleteSetup = () => {
+                setPreferences({
+                    ...tempPreferences
+                });
+                setPreferencesSetup(false);
+                setSelectedView('dashboard');
+            };
+
+            // Landing Page
+            if (!currentUser) {
+                return (
+                    <div className="min-h-screen bg-white">
+                        {/* Navigation */}
+                        <nav className="border-b border-gray-200">
+                            <div className="max-w-7xl mx-auto px-8 py-6 flex justify-between items-center">
+                                <div className="flex items-center gap-2">
+                                    <div className="text-2xl font-bold text-gray-900">HomeRadar</div>
+                                </div>
+                                <button 
+                                    onClick={() => { setAuthMode('login'); setShowAuthModal(true); }} 
+                                    className="px-6 py-2 text-gray-700 border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition"
+                                >
+                                    Sign In
+                                </button>
+                            </div>
+                        </nav>
+
+                        {/* Hero Section */}
+                        <div className="max-w-7xl mx-auto px-8 py-24">
+                            <div className="max-w-2xl">
+                                <h1 className="text-6xl font-bold text-gray-900 mb-6 leading-tight">
+                                    Find your perfect home
+                                </h1>
+                                <p className="text-xl text-gray-600 mb-12 leading-relaxed">
+                                    HomeRadar uses advanced intelligence to understand your preferences and match you with properties that truly fit your lifestyle and investment goals.
+                                </p>
+                                <button 
+                                    onClick={() => { setAuthMode('signup'); setShowAuthModal(true); }} 
+                                    className="px-8 py-3 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition"
+                                >
+                                    Get Started
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Features Section */}
+                        <div className="bg-gray-50 border-t border-gray-200">
+                            <div className="max-w-7xl mx-auto px-8 py-20">
+                                <h2 className="text-3xl font-bold text-gray-900 mb-16">How it works</h2>
+                                <div className="grid grid-cols-3 gap-12">
+                                    <div>
+                                        <div className="text-sm font-semibold text-indigo-600 mb-3">STEP ONE</div>
+                                        <h3 className="text-xl font-semibold text-gray-900 mb-3">Share Your Criteria</h3>
+                                        <p className="text-gray-600">Tell us about your ideal home, budget, preferred locations, and must-have features.</p>
+                                    </div>
+                                    <div>
+                                        <div className="text-sm font-semibold text-indigo-600 mb-3">STEP TWO</div>
+                                        <h3 className="text-xl font-semibold text-gray-900 mb-3">Intelligent Matching</h3>
+                                        <p className="text-gray-600">Our AI analyzes hundreds of properties and identifies the best matches for your specific needs.</p>
+                                    </div>
+                                    <div>
+                                        <div className="text-sm font-semibold text-indigo-600 mb-3">STEP THREE</div>
+                                        <h3 className="text-xl font-semibold text-gray-900 mb-3">Expert Insights</h3>
+                                        <p className="text-gray-600">Get detailed market analysis, property scoring, and expert recommendations to guide your decision.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Auth Modal */}
+                        {showAuthModal && (
+                            <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50">
+                                <div className="bg-white rounded-xl p-8 max-w-md w-full mx-4 border border-gray-200">
+                                    <div className="flex justify-between items-center mb-8">
+                                        <h2 className="text-2xl font-semibold text-gray-900">
+                                            {authMode === 'login' ? 'Sign In' : 'Create Account'}
+                                        </h2>
+                                        <button onClick={() => setShowAuthModal(false)} className="text-2xl text-gray-400 hover:text-gray-600">×</button>
+                                    </div>
+
+                                    {authMode === 'login' ? (
+                                        <div className="space-y-4">
+                                            <input
+                                                type="email"
+                                                placeholder="Email"
+                                                value={loginForm.email}
+                                                onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
+                                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-gray-400"
+                                            />
+                                            <input
+                                                type="password"
+                                                placeholder="Password"
+                                                value={loginForm.password}
+                                                onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-gray-400"
+                                            />
+                                            <button onClick={handleLogin} className="w-full px-4 py-3 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition">
+                                                Sign In
+                                            </button>
+                                            <p className="text-center text-gray-600 text-sm">
+                                                Don't have an account?{' '}
+                                                <button onClick={() => setAuthMode('signup')} className="text-gray-900 font-semibold hover:underline">
+                                                    Create one
+                                                </button>
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            <input
+                                                type="text"
+                                                placeholder="Full name"
+                                                value={signupForm.name}
+                                                onChange={(e) => setSignupForm({ ...signupForm, name: e.target.value })}
+                                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-gray-400"
+                                            />
+                                            <input
+                                                type="email"
+                                                placeholder="Email"
+                                                value={signupForm.email}
+                                                onChange={(e) => setSignupForm({ ...signupForm, email: e.target.value })}
+                                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-gray-400"
+                                            />
+                                            <input
+                                                type="password"
+                                                placeholder="Password"
+                                                value={signupForm.password}
+                                                onChange={(e) => setSignupForm({ ...signupForm, password: e.target.value })}
+                                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-gray-400"
+                                            />
+                                            <button onClick={handleSignup} className="w-full px-4 py-3 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition">
+                                                Create Account
+                                            </button>
+                                            <p className="text-center text-gray-600 text-sm">
+                                                Already have an account?{' '}
+                                                <button onClick={() => setAuthMode('login')} className="text-gray-900 font-semibold hover:underline">
+                                                    Sign in
+                                                </button>
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                );
+            }
+
+            // Preferences Setup
+            if (preferencesSetup) {
+                const handleNextStep = () => {
+                    if (setupStep === 'budget') setSetupStep('cities');
+                    else if (setupStep === 'cities') setSetupStep('features');
+                    else if (setupStep === 'features') setSetupStep('review');
+                };
+
+                const handleBackStep = () => {
+                    if (setupStep === 'cities') setSetupStep('budget');
+                    else if (setupStep === 'features') setSetupStep('cities');
+                    else if (setupStep === 'review') setSetupStep('features');
+                };
+
+                const toggleCity = (city) => {
+                    setTempPreferences({
+                        ...tempPreferences,
+                        cities: tempPreferences.cities.includes(city)
+                            ? tempPreferences.cities.filter(c => c !== city)
+                            : [...tempPreferences.cities, city]
+                    });
+                };
+
+                const toggleFeature = (feature) => {
+                    setTempPreferences({
+                        ...tempPreferences,
+                        features: tempPreferences.features.includes(feature)
+                            ? tempPreferences.features.filter(f => f !== feature)
+                            : [...tempPreferences.features, feature]
+                    });
+                };
+
+                return (
+                    <div className="min-h-screen bg-white p-8">
+                        <div className="max-w-2xl mx-auto">
+                            <div className="mb-12">
+                                <h1 className="text-4xl font-bold text-gray-900 mb-2">Welcome, {currentUser?.name}</h1>
+                                <p className="text-gray-600">Let's set up your preferences to find your ideal home.</p>
+                            </div>
+
+                            <div className="bg-white border border-gray-200 rounded-xl p-12">
+                                {setupStep === 'budget' && (
+                                    <div className="space-y-8">
+                                        <div>
+                                            <h2 className="text-2xl font-semibold text-gray-900 mb-2">Budget</h2>
+                                            <p className="text-gray-600 mb-6">What is your maximum budget?</p>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-3">Maximum Budget: DKK {(tempPreferences.budget.max / 1000000).toFixed(1)}M</label>
+                                            <input
+                                                type="range"
+                                                min="1000000"
+                                                max="10000000"
+                                                step="100000"
+                                                value={tempPreferences.budget.max}
+                                                onChange={(e) => setTempPreferences({
+                                                    ...tempPreferences,
+                                                    budget: { ...tempPreferences.budget, max: parseInt(e.target.value) }
+                                                })}
+                                                className="w-full"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {setupStep === 'cities' && (
+                                    <div className="space-y-8">
+                                        <div>
+                                            <h2 className="text-2xl font-semibold text-gray-900 mb-2">Preferred Areas</h2>
+                                            <p className="text-gray-600 mb-6">Which areas are you interested in?</p>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            {allCities.map(city => (
+                                                <button
+                                                    key={city}
+                                                    onClick={() => toggleCity(city)}
+                                                    className={`p-4 rounded-lg border-2 font-medium transition ${
+                                                        tempPreferences.cities.includes(city)
+                                                            ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
+                                                            : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
+                                                    }`}
+                                                >
+                                                    {city}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {setupStep === 'features' && (
+                                    <div className="space-y-8">
+                                        <div>
+                                            <h2 className="text-2xl font-semibold text-gray-900 mb-2">Must-Have Features</h2>
+                                            <p className="text-gray-600 mb-6">Select the features that matter most to you.</p>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            {allFeatures.map(feature => (
+                                                <button
+                                                    key={feature}
+                                                    onClick={() => toggleFeature(feature)}
+                                                    className={`p-4 rounded-lg border-2 font-medium transition ${
+                                                        tempPreferences.features.includes(feature)
+                                                            ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
+                                                            : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
+                                                    }`}
+                                                >
+                                                    {feature}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {setupStep === 'review' && (
+                                    <div className="space-y-8">
+                                        <div>
+                                            <h2 className="text-2xl font-semibold text-gray-900 mb-6">Review Your Preferences</h2>
+                                        </div>
+                                        <div className="space-y-4">
+                                            <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                                                <h3 className="font-semibold text-gray-900 mb-2">Budget</h3>
+                                                <p className="text-gray-600">Maximum DKK {(tempPreferences.budget.max / 1000000).toFixed(1)}M</p>
+                                            </div>
+                                            <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                                                <h3 className="font-semibold text-gray-900 mb-2">Preferred Areas</h3>
+                                                <p className="text-gray-600">{tempPreferences.cities.join(', ') || 'None selected'}</p>
+                                            </div>
+                                            <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                                                <h3 className="font-semibold text-gray-900 mb-2">Must-Have Features</h3>
+                                                <p className="text-gray-600">{tempPreferences.features.join(', ') || 'None selected'}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex gap-4 mt-8">
+                                {setupStep !== 'budget' && (
+                                    <button 
+                                        onClick={handleBackStep}
+                                        className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition"
+                                    >
+                                        Back
+                                    </button>
+                                )}
+                                {setupStep !== 'review' ? (
+                                    <button 
+                                        onClick={handleNextStep}
+                                        className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition"
+                                    >
+                                        Continue
+                                    </button>
+                                ) : (
+                                    <button 
+                                        onClick={handleCompleteSetup}
+                                        className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition"
+                                    >
+                                        Start Browsing
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // Main Dashboard
+            return (
+                <div className="min-h-screen bg-white flex">
+                    {/* Sidebar */}
+                    <div className="w-64 border-r border-gray-200 fixed left-0 top-0 bottom-0 bg-white">
+                        <div className="p-8 border-b border-gray-200">
+                            <h1 className="text-2xl font-bold text-gray-900">HomeRadar</h1>
+                        </div>
+                        
+                        <nav className="p-6 space-y-2">
+                            {[
+                                { label: 'Dashboard', view: 'dashboard' },
+                                { label: 'Properties', view: 'properties' },
+                                { label: 'Saved', view: 'saved' },
+                                { label: 'Messages', view: 'messages' }
+                            ].map(item => (
+                                <button
+                                    key={item.view}
+                                    onClick={() => setSelectedView(item.view)}
+                                    className={`sidebar-nav-item w-full text-left px-4 py-3 rounded-lg font-medium transition ${
+                                        selectedView === item.view
+                                            ? 'active bg-indigo-50 text-indigo-700'
+                                            : 'text-gray-700 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    {item.label}
+                                </button>
+                            ))}
+                        </nav>
+
+                        <div className="absolute bottom-8 left-6 right-6 border-t border-gray-200 pt-6">
+                            <div className="mb-4">
+                                <p className="text-sm text-gray-600">{currentUser?.name}</p>
+                                <p className="text-xs text-gray-500">{currentUser?.email}</p>
+                            </div>
+                            <button 
+                                onClick={() => setCurrentUser(null)}
+                                className="w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition text-sm"
+                            >
+                                Sign Out
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Main Content */}
+                    <div className="flex-1 ml-64">
+                        {selectedView === 'dashboard' && (
+                            <div className="p-12">
+                                {/* Header */}
+                                <div className="mb-12">
+                                    <h1 className="text-4xl font-bold text-gray-900 mb-2">Good morning, {currentUser?.name?.split(' ')[0]}</h1>
+                                    <p className="text-gray-600">We found 3 properties that match your criteria</p>
+                                </div>
+
+                                {/* Profile Section */}
+                                <div className="mb-12">
+                                    <h2 className="text-xl font-semibold text-gray-900 mb-6">Your Criteria</h2>
+                                    <div className="grid grid-cols-2 gap-6">
+                                        <div className="card-subtle bg-white rounded-xl p-8">
+                                            <h3 className="text-sm font-semibold text-gray-500 uppercase mb-3">Budget</h3>
+                                            <p className="text-2xl font-semibold text-gray-900">DKK {(preferences.budget.max/1000000).toFixed(0)}M</p>
+                                        </div>
+                                        <div className="card-subtle bg-white rounded-xl p-8">
+                                            <h3 className="text-sm font-semibold text-gray-500 uppercase mb-3">Areas</h3>
+                                            <p className="text-lg font-semibold text-gray-900">{preferences.cities.join(', ')}</p>
+                                        </div>
+                                        <div className="card-subtle bg-white rounded-xl p-8 col-span-2">
+                                            <h3 className="text-sm font-semibold text-gray-500 uppercase mb-3">Must-Have Features</h3>
+                                            <div className="flex flex-wrap gap-2">
+                                                {preferences.features.map(f => (
+                                                    <span key={f} className="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-sm font-medium">
+                                                        {f}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Properties */}
+                                <div>
+                                    <h2 className="text-xl font-semibold text-gray-900 mb-6">Matched Properties</h2>
+                                    <div className="grid grid-cols-2 gap-8">
+                                        {mockProperties.map(prop => {
+                                            const score = calculateScore(prop);
+                                            if (score === 0) return null;
+                                            return (
+                                                <div key={prop.id} className="card-subtle bg-white rounded-xl overflow-hidden">
+                                                    <div className="h-48 property-image flex items-center justify-center text-gray-300">
+                                                        Photo
+                                                    </div>
+                                                    <div className="p-8">
+                                                        <div className="flex justify-between items-start mb-4">
+                                                            <div>
+                                                                <h3 className="text-xl font-semibold text-gray-900">{prop.address}</h3>
+                                                                <p className="text-sm text-gray-600 mt-1">{prop.city}</p>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <div className="text-3xl font-bold text-indigo-600">{score}%</div>
+                                                                <p className="text-xs text-gray-500 mt-1">Match Score</p>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="grid grid-cols-3 gap-4 my-6 py-6 border-y border-gray-200">
+                                                            <div>
+                                                                <p className="text-xs text-gray-500 uppercase mb-1">Price</p>
+                                                                <p className="font-semibold text-gray-900">{(prop.price/1000000).toFixed(1)}M DKK</p>
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-xs text-gray-500 uppercase mb-1">Size</p>
+                                                                <p className="font-semibold text-gray-900">{prop.size} m²</p>
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-xs text-gray-500 uppercase mb-1">Rooms</p>
+                                                                <p className="font-semibold text-gray-900">{prop.rooms}</p>
+                                                            </div>
+                                                        </div>
+
+                                                        <p className="text-gray-600 text-sm mb-6">{prop.description}</p>
+
+                                                        <button className="w-full px-4 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition">
+                                                            View Details
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {selectedView === 'properties' && (
+                            <div className="p-12">
+                                <h1 className="text-3xl font-bold text-gray-900 mb-8">All Properties</h1>
+                                <div className="grid grid-cols-2 gap-8">
+                                    {mockProperties.map(prop => {
+                                        const score = calculateScore(prop);
+                                        return (
+                                            <div key={prop.id} className="card-subtle bg-white rounded-xl p-8">
+                                                <h3 className="text-lg font-semibold text-gray-900 mb-2">{prop.address}</h3>
+                                                <p className="text-gray-600 mb-4">{prop.price.toLocaleString('da-DK')} DKK</p>
+                                                <p className="text-2xl font-bold text-indigo-600">{score}%</p>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {selectedView === 'saved' && (
+                            <div className="p-12">
+                                <h1 className="text-3xl font-bold text-gray-900">Saved Properties</h1>
+                                <p className="text-gray-600 mt-4">Your saved properties will appear here.</p>
+                            </div>
+                        )}
+
+                        {selectedView === 'messages' && (
+                            <div className="p-12">
+                                <h1 className="text-3xl font-bold text-gray-900">Messages</h1>
+                                <p className="text-gray-600 mt-4">Your messages will appear here.</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
