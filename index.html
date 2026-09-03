@@ -8,26 +8,59 @@
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Scandinavian-inspired palette: deep forest green primary, sage secondary, warm off-white background.
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#EEF3EF',
+                            100: '#DCE7DE',
+                            200: '#B9CFBE',
+                            300: '#8FB098',
+                            400: '#5E8A6B',
+                            500: '#3E6B4C',
+                            600: '#1F3A2E',
+                            700: '#16291F',
+                            800: '#0E1B15',
+                            900: '#081109'
+                        },
+                        sage: {
+                            50: '#F5F7F4',
+                            100: '#E8EDE4',
+                            200: '#D3DCCB',
+                            300: '#B7C7AB'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif']
+                    }
+                }
+            }
+        };
+    </script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Lora:wght@400;500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         
         body {
-            font-family: 'Outfit', sans-serif;
+            font-family: 'Inter', sans-serif;
+            color: #2B2B28;
         }
         
         h1, h2, h3, h4, h5, h6 {
-            font-family: 'Outfit', sans-serif;
+            font-family: 'Inter', sans-serif;
             font-weight: 600;
         }
         
         .card-subtle { 
             transition: all 0.2s ease;
-            border: 1px solid #e0e7ff;
+            border: 1px solid #E8EDE4;
         }
         
         .card-subtle:hover {
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
-            border-color: #c7d2fe;
+            box-shadow: 0 4px 20px rgba(31, 58, 46, 0.06);
+            border-color: #B9CFBE;
         }
         
         .sidebar-nav-item {
@@ -35,26 +68,26 @@
         }
         
         .sidebar-nav-item.active {
-            background-color: #f0f4ff;
-            border-left: 3px solid #4f46e5;
+            background-color: #EEF3EF;
+            border-left: 3px solid #1F3A2E;
             padding-left: calc(1rem - 3px);
         }
         
         .progress-circle {
-            background: conic-gradient(#4f46e5 0deg 331.2deg, #e0e7ff 331.2deg 360deg);
+            background: conic-gradient(#1F3A2E var(--pct, 0%), #E8EDE4 0);
         }
         
         .stat-card {
-            background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
-            border: 1px solid #e5e7eb;
+            background: linear-gradient(135deg, #ffffff 0%, #F5F7F4 100%);
+            border: 1px solid #E8EDE4;
         }
         
         .property-image {
-            background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+            background: linear-gradient(135deg, #F5F7F4 0%, #E8EDE4 100%);
         }
     </style>
 </head>
-<body class="bg-white">
+<body class="bg-[#FAF9F6]">
     <div id="root"></div>
 
     <script type="text/babel">
@@ -231,14 +264,14 @@
                                 placeholder="e.g. Copenhagen or 2100"
                                 className="flex-1 px-4 py-3 border border-gray-300 rounded-lg"
                             />
-                            <button onClick={addArea} className="px-6 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition">Add</button>
+                            <button onClick={addArea} className="px-6 py-3 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition">Add</button>
                         </div>
                         <div className="flex flex-wrap gap-2 mb-3">
                             {allCities.map(c => (
                                 <button
                                     key={c}
                                     onClick={() => toggleSuggestedArea(c)}
-                                    className={`px-3 py-1 rounded-full text-sm font-medium transition ${areas.includes(c) ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                                    className={`px-3 py-1 rounded-full text-sm font-medium transition ${areas.includes(c) ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
                                 >
                                     {c}
                                 </button>
@@ -247,9 +280,9 @@
                         {areas.length > 0 && (
                             <div className="flex flex-wrap gap-2">
                                 {areas.map(a => (
-                                    <span key={a} className="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-2">
+                                    <span key={a} className="bg-brand-50 text-brand-700 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-2">
                                         {a}
-                                        <button onClick={() => removeArea(a)} className="text-indigo-400 hover:text-indigo-700">×</button>
+                                        <button onClick={() => removeArea(a)} className="text-brand-400 hover:text-brand-700">×</button>
                                     </span>
                                 ))}
                             </div>
@@ -265,7 +298,7 @@
                                 <button
                                     key={f}
                                     onClick={() => toggleFeature(f)}
-                                    className={`px-3 py-1 rounded-full text-sm font-medium transition ${features.includes(f) ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                                    className={`px-3 py-1 rounded-full text-sm font-medium transition ${features.includes(f) ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
                                 >
                                     {f}
                                 </button>
@@ -285,16 +318,16 @@
                         {features.filter(f => !allFeatures.includes(f)).length > 0 && (
                             <div className="flex flex-wrap gap-2">
                                 {features.filter(f => !allFeatures.includes(f)).map(f => (
-                                    <span key={f} className="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-2">
+                                    <span key={f} className="bg-brand-50 text-brand-700 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-2">
                                         {f}
-                                        <button onClick={() => toggleFeature(f)} className="text-indigo-400 hover:text-indigo-700">×</button>
+                                        <button onClick={() => toggleFeature(f)} className="text-brand-400 hover:text-brand-700">×</button>
                                     </span>
                                 ))}
                             </div>
                         )}
                     </div>
 
-                    <button onClick={handleSave} className="w-full px-6 py-4 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition text-lg">
+                    <button onClick={handleSave} className="w-full px-6 py-4 bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition text-lg">
                         {submitLabel}
                     </button>
                 </div>
@@ -305,11 +338,15 @@
         // All Properties page, so both show the same real data (incl. photo) instead of drifting apart.
         function PropertyCard({ prop, score, breakdown, isShortlisted, onToggleShortlist, onFeedback, onOpenDetails }) {
             const imageUrl = prop.thumbnail_url || (Array.isArray(prop.images) && prop.images.length > 0 ? prop.images[0] : null);
+            const isComingSoon = prop.source === 'agent_portal';
+            const daysAgo = prop.listing_date ? Math.max(0, Math.floor((Date.now() - new Date(prop.listing_date)) / 86400000)) : null;
+            const isNew = daysAgo !== null && daysAgo <= 3;
+            const timeLabel = daysAgo === null ? null : (daysAgo === 0 ? 'Today' : daysAgo === 1 ? '1 day ago' : `${daysAgo} days ago`);
             return (
                 <div className="card-subtle bg-white rounded-xl overflow-hidden">
                     <div
                         onClick={() => onOpenDetails(prop)}
-                        className="h-48 property-image flex items-center justify-center text-gray-300 overflow-hidden bg-gray-50 cursor-pointer"
+                        className="relative h-48 property-image flex items-center justify-center text-gray-300 overflow-hidden bg-gray-50 cursor-pointer"
                     >
                         {imageUrl ? (
                             <img
@@ -319,17 +356,23 @@
                                 onError={(e) => { e.target.remove(); }}
                             />
                         ) : 'Photo'}
+                        <div className="absolute top-3 left-3 flex gap-2">
+                            <span className="bg-brand-600 text-white text-xs font-semibold px-2.5 py-1 rounded-full shadow">{score}% Match</span>
+                            {isComingSoon && <span className="bg-amber-500 text-white text-xs font-semibold px-2.5 py-1 rounded-full shadow">Coming Soon</span>}
+                            {!isComingSoon && isNew && <span className="bg-white text-brand-700 text-xs font-semibold px-2.5 py-1 rounded-full border border-brand-200 shadow">New</span>}
+                        </div>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onToggleShortlist(prop); }}
+                            className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/90 flex items-center justify-center text-lg shadow hover:scale-105 transition"
+                            aria-label={isShortlisted ? 'Remove from watchlist' : 'Save to watchlist'}
+                        >
+                            {isShortlisted ? '❤️' : '🤍'}
+                        </button>
                     </div>
                     <div className="p-8">
-                        <div onClick={() => onOpenDetails(prop)} className="flex justify-between items-start mb-4 cursor-pointer">
-                            <div>
-                                <h3 className="text-xl font-semibold text-gray-900 hover:text-indigo-600">{prop.address}</h3>
-                                <p className="text-sm text-gray-600 mt-1">{prop.city}</p>
-                            </div>
-                            <div className="text-right">
-                                <div className="text-3xl font-bold text-indigo-600">{score}%</div>
-                                <p className="text-xs text-gray-500 mt-1">Match Score</p>
-                            </div>
+                        <div onClick={() => onOpenDetails(prop)} className="mb-4 cursor-pointer">
+                            <h3 className="text-xl font-semibold text-gray-900 hover:text-brand-600">{prop.address}</h3>
+                            <p className="text-sm text-gray-600 mt-1">{prop.city}{prop.postal_code ? ` · ${prop.postal_code}` : ''}</p>
                         </div>
 
                         <div className="grid grid-cols-3 gap-4 my-6 py-6 border-y border-gray-200">
@@ -347,9 +390,9 @@
                             </div>
                         </div>
 
-                        {/* Why this matches */}
+                        {/* Why we think you'll love it */}
                         <div className="mb-6">
-                            <p className="text-xs font-semibold text-gray-500 uppercase mb-3">Why this matches</p>
+                            <p className="text-xs font-semibold text-gray-500 uppercase mb-3">Why we think you'll love it</p>
                             <div className="space-y-2">
                                 {[
                                     { label: 'Budget', val: breakdown.budget },
@@ -365,7 +408,7 @@
                                             </div>
                                         </div>
                                         <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
-                                            <div className="bg-indigo-500 h-full" style={{width: `${f.val}%`}}></div>
+                                            <div className="bg-brand-500 h-full" style={{width: `${f.val}%`}}></div>
                                         </div>
                                         <div className="w-8 text-xs font-semibold text-gray-700 text-right">{f.val}</div>
                                     </div>
@@ -374,19 +417,18 @@
                         </div>
 
                         <p className="text-gray-600 text-sm mb-2">{prop.description || 'Property details'}</p>
-                        <div className="text-xs text-gray-500 mb-6">Source: {prop.source || 'N/A'}{prop.agent_name ? ` · ${prop.agent_name}` : ''}</div>
+                        <div className="text-xs text-gray-500 mb-6">
+                            Source: {prop.source || 'N/A'}{prop.agent_name ? ` · ${prop.agent_name}` : ''}{timeLabel ? ` · ${timeLabel}` : ''}
+                        </div>
 
                         <div className="flex gap-3">
-                            <button onClick={() => onToggleShortlist(prop)} className={`px-4 py-3 rounded-lg font-medium transition ${isShortlisted ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100'}`}>
-                                {isShortlisted ? '❤️ Saved' : '🤍 Save'}
-                            </button>
                             <button onClick={() => onFeedback(prop, true)} className="px-4 py-3 border border-green-200 text-green-700 rounded-lg font-medium hover:bg-green-50 transition">
                                 👍
                             </button>
                             <button onClick={() => onFeedback(prop, false)} className="px-4 py-3 border border-gray-200 text-gray-500 rounded-lg font-medium hover:bg-gray-50 transition">
                                 👎
                             </button>
-                            <button onClick={() => onOpenDetails(prop)} className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition">
+                            <button onClick={() => onOpenDetails(prop)} className="flex-1 px-4 py-3 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition">
                                 View Details
                             </button>
                         </div>
@@ -880,8 +922,8 @@
             // Avoid flashing the logged-out landing page while a saved session is still being restored.
             if (!authChecked) {
                 return (
-                    <div className="min-h-screen bg-white flex items-center justify-center">
-                        <div className="w-10 h-10 border-4 border-gray-100 border-t-indigo-600 rounded-full animate-spin"></div>
+                    <div className="min-h-screen bg-[#FAF9F6] flex items-center justify-center">
+                        <div className="w-10 h-10 border-4 border-gray-100 border-t-brand-600 rounded-full animate-spin"></div>
                     </div>
                 );
             }
@@ -889,7 +931,7 @@
             // Landing Page
             if (!currentUser) {
                 return (
-                    <div className="min-h-screen bg-white">
+                    <div className="min-h-screen bg-[#FAF9F6]">
                         {/* Navigation */}
                         <nav className="border-b border-gray-200">
                             <div className="max-w-7xl mx-auto px-8 py-6 flex justify-between items-center">
@@ -929,17 +971,17 @@
                                 <h2 className="text-3xl font-bold text-gray-900 mb-16">How it works</h2>
                                 <div className="grid grid-cols-3 gap-12">
                                     <div>
-                                        <div className="text-sm font-semibold text-indigo-600 mb-3">STEP ONE</div>
+                                        <div className="text-sm font-semibold text-brand-600 mb-3">STEP ONE</div>
                                         <h3 className="text-xl font-semibold text-gray-900 mb-3">Share Your Criteria</h3>
                                         <p className="text-gray-600">Tell us about your ideal home, budget, preferred locations, and must-have features.</p>
                                     </div>
                                     <div>
-                                        <div className="text-sm font-semibold text-indigo-600 mb-3">STEP TWO</div>
+                                        <div className="text-sm font-semibold text-brand-600 mb-3">STEP TWO</div>
                                         <h3 className="text-xl font-semibold text-gray-900 mb-3">Intelligent Matching</h3>
                                         <p className="text-gray-600">Our AI analyzes hundreds of properties and identifies the best matches for your specific needs.</p>
                                     </div>
                                     <div>
-                                        <div className="text-sm font-semibold text-indigo-600 mb-3">STEP THREE</div>
+                                        <div className="text-sm font-semibold text-brand-600 mb-3">STEP THREE</div>
                                         <h3 className="text-xl font-semibold text-gray-900 mb-3">Expert Insights</h3>
                                         <p className="text-gray-600">Get detailed market analysis, property scoring, and expert recommendations to guide your decision.</p>
                                     </div>
@@ -1088,7 +1130,7 @@
             if (preferencesSetup) {
                 return (
                     <>
-                    <div className="min-h-screen bg-white p-8">
+                    <div className="min-h-screen bg-[#FAF9F6] p-8">
                         <div className="max-w-2xl mx-auto">
                             <div className="mb-12">
                                 <h1 className="text-4xl font-bold text-gray-900 mb-2">Welcome, {currentUser?.name}</h1>
@@ -1109,7 +1151,7 @@
                     {showSearchingModal && (
                         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
                             <div className="bg-white rounded-2xl p-10 max-w-sm w-full mx-4 text-center shadow-2xl">
-                                <div className="w-14 h-14 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mx-auto mb-6"></div>
+                                <div className="w-14 h-14 border-4 border-brand-100 border-t-brand-600 rounded-full animate-spin mx-auto mb-6"></div>
                                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Searching for your perfect home</h3>
                                 <p className="text-sm text-gray-500">We're checking real listings that match your criteria…</p>
                             </div>
@@ -1124,20 +1166,43 @@
             const relevantFeedbackCount = feedbackHistory.filter(f => f.relevant).length;
             const learningAccuracy = feedbackHistory.length > 0 ? Math.round((relevantFeedbackCount / feedbackHistory.length) * 100) : 0;
 
+            // How well the current matches align with the saved profile - the average of each
+            // matched property's own score, not to be confused with learningAccuracy (which is
+            // derived from 👍/👎 feedback instead).
+            const profileMatchAccuracy = matchedProperties.length > 0
+                ? Math.round(matchedProperties.reduce((sum, p) => sum + calculateScore(p), 0) / matchedProperties.length)
+                : 0;
+
+            // Real, lightweight market signals computed from the properties HomeRadar already has
+            // on file - no external market-data feed required.
+            const realListings = apiProperties.length > 0 ? apiProperties : [];
+            const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+            const newThisWeek = realListings.filter(p => p.listing_date && new Date(p.listing_date).getTime() >= oneWeekAgo).length;
+            const daysOnMarketList = realListings
+                .filter(p => p.listing_date)
+                .map(p => Math.max(0, Math.floor((Date.now() - new Date(p.listing_date)) / 86400000)));
+            const avgDaysOnMarket = daysOnMarketList.length > 0
+                ? Math.round(daysOnMarketList.reduce((a, b) => a + b, 0) / daysOnMarketList.length)
+                : null;
+            const verifiedSourceCount = new Set(realListings.filter(p => p.verified).map(p => p.source)).size;
+
             return (
                 <>
-                <div className="min-h-screen bg-white flex">
+                <div className="min-h-screen bg-[#FAF9F6] flex">
                     {/* Sidebar */}
                     <div className="w-64 border-r border-gray-200 fixed left-0 top-0 bottom-0 bg-white">
                         <div className="p-8 border-b border-gray-200">
-                            <h1 className="text-2xl font-bold text-gray-900">HomeRadar</h1>
+                            <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-full bg-brand-600 text-white flex items-center justify-center text-sm">📡</div>
+                                <h1 className="text-2xl font-bold text-gray-900">HomeRadar</h1>
+                            </div>
                         </div>
                         
                         <nav className="p-6 space-y-2">
                             {[
                                 { label: 'Dashboard', view: 'dashboard' },
-                                { label: 'Properties', view: 'properties' },
-                                { label: 'Saved', view: 'saved' },
+                                { label: 'Matches', view: 'properties' },
+                                { label: 'Watchlist', view: 'saved' },
                                 { label: 'Messages', view: 'messages' },
                                 { label: 'Profile', view: 'profile' }
                             ].map(item => (
@@ -1146,7 +1211,7 @@
                                     onClick={() => setSelectedView(item.view)}
                                     className={`sidebar-nav-item w-full text-left px-4 py-3 rounded-lg font-medium transition ${
                                         selectedView === item.view
-                                            ? 'active bg-indigo-50 text-indigo-700'
+                                            ? 'active bg-brand-50 text-brand-700'
                                             : 'text-gray-700 hover:bg-gray-50'
                                     }`}
                                 >
@@ -1183,15 +1248,20 @@
                         {selectedView === 'dashboard' && (
                             <div className="p-12">
                                 {/* Header */}
-                                <div className="mb-12">
-                                    <h1 className="text-4xl font-bold text-gray-900 mb-2">Good morning, {currentUser?.name?.split(' ')[0]}</h1>
-                                    <p className="text-gray-600">We found {matchedProperties.length} properties that match your criteria</p>
+                                <div className="mb-12 flex items-start justify-between">
+                                    <div>
+                                        <h1 className="text-4xl font-bold text-gray-900 mb-2">Good morning, {currentUser?.name?.split(' ')[0]}</h1>
+                                        <p className="text-gray-600">We found {matchedProperties.length} new matches for you.</p>
+                                    </div>
+                                    <button onClick={() => setSelectedView('profile')} className="px-6 py-3 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition whitespace-nowrap">
+                                        Edit my profile
+                                    </button>
                                 </div>
 
                                 {/* Stats */}
                                 <div className="grid grid-cols-4 gap-6 mb-12">
                                     <div className="stat-card rounded-xl p-6">
-                                        <div className="text-3xl font-bold text-indigo-600 mb-1">{matchedProperties.length}</div>
+                                        <div className="text-3xl font-bold text-brand-600 mb-1">{matchedProperties.length}</div>
                                         <div className="text-sm text-gray-600 font-medium">Matched Properties</div>
                                     </div>
                                     <div className="stat-card rounded-xl p-6">
@@ -1208,27 +1278,78 @@
                                     </div>
                                 </div>
 
-                                {/* Profile Section */}
+                                {/* Home Profile Card */}
                                 <div className="mb-12">
-                                    <h2 className="text-xl font-semibold text-gray-900 mb-6">Your Criteria</h2>
-                                    <div className="grid grid-cols-2 gap-6">
-                                        <div className="card-subtle bg-white rounded-xl p-8">
-                                            <h3 className="text-sm font-semibold text-gray-500 uppercase mb-3">Budget</h3>
-                                            <p className="text-2xl font-semibold text-gray-900">DKK {(preferences.budget.min/1000000).toFixed(1)}M \u2013 {preferences.budget.max >= 50000000 ? '50M+' : (preferences.budget.max/1000000).toFixed(1) + 'M'}</p>
-                                        </div>
-                                        <div className="card-subtle bg-white rounded-xl p-8">
-                                            <h3 className="text-sm font-semibold text-gray-500 uppercase mb-3">Areas</h3>
-                                            <p className="text-lg font-semibold text-gray-900">{preferences.cities.join(', ')}</p>
-                                        </div>
-                                        <div className="card-subtle bg-white rounded-xl p-8 col-span-2">
-                                            <h3 className="text-sm font-semibold text-gray-500 uppercase mb-3">Must-Have Features</h3>
-                                            <div className="flex flex-wrap gap-2">
-                                                {preferences.features.map(f => (
-                                                    <span key={f} className="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-sm font-medium">
-                                                        {f}
-                                                    </span>
-                                                ))}
+                                    <h2 className="text-xl font-semibold text-gray-900 mb-6">Your Home Profile</h2>
+                                    <div className="card-subtle bg-white rounded-xl p-8 flex items-center gap-8">
+                                        <div className="flex-1 grid grid-cols-2 gap-x-8 gap-y-6">
+                                            <div>
+                                                <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">Areas</h3>
+                                                <p className="text-base font-semibold text-gray-900">{preferences.cities.join(', ')}</p>
                                             </div>
+                                            <div>
+                                                <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">Budget</h3>
+                                                <p className="text-base font-semibold text-gray-900">DKK {(preferences.budget.min/1000000).toFixed(1)}M \u2013 {preferences.budget.max >= 50000000 ? '50M+' : (preferences.budget.max/1000000).toFixed(1) + 'M'}</p>
+                                            </div>
+                                            <div>
+                                                <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">{preferences.sizeMode === 'rooms' ? 'Rooms' : 'Size'}</h3>
+                                                <p className="text-base font-semibold text-gray-900">{preferences.sizeMode === 'rooms' ? `${preferences.minRooms}+ rooms` : `${preferences.minSize}+ m²`}</p>
+                                            </div>
+                                            <div>
+                                                <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">Must-haves</h3>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {preferences.features.length > 0 ? preferences.features.map(f => (
+                                                        <span key={f} className="bg-brand-50 text-brand-700 px-2.5 py-0.5 rounded-full text-xs font-medium">
+                                                            {f}
+                                                        </span>
+                                                    )) : <span className="text-sm text-gray-400">None set</span>}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-col items-center shrink-0 pl-8 border-l border-gray-100">
+                                            <div className="progress-circle w-20 h-20 rounded-full flex items-center justify-center" style={{'--pct': `${profileMatchAccuracy}%`}}>
+                                                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center">
+                                                    <span className="text-lg font-bold text-brand-600">{profileMatchAccuracy}%</span>
+                                                </div>
+                                            </div>
+                                            <p className="text-xs text-gray-500 mt-2 text-center">Profile Match<br/>Accuracy</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Market Monitoring */}
+                                <div className="mb-12">
+                                    <div className="bg-sage-50 border border-sage-200 rounded-xl p-8">
+                                        <div className="flex items-start gap-4">
+                                            <div className="w-12 h-12 rounded-full bg-brand-600 text-white flex items-center justify-center text-xl shrink-0">📡</div>
+                                            <div>
+                                                <h3 className="text-lg font-semibold text-gray-900 mb-1">We're always scanning the market</h3>
+                                                <p className="text-sm text-gray-600 mb-4">HomeRadar continuously checks real listings so you don't have to search for them yourself.</p>
+                                                <div className="flex flex-wrap gap-3">
+                                                    <span className="bg-white border border-sage-200 px-4 py-2 rounded-lg text-sm font-medium text-gray-700">Boligsiden</span>
+                                                    <span className="bg-white border border-sage-200 px-4 py-2 rounded-lg text-sm font-medium text-gray-700">Agent Portal</span>
+                                                    <span className="bg-white border border-sage-200 px-4 py-2 rounded-lg text-sm font-medium text-gray-700">More Sources Soon</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Market Insights */}
+                                <div className="mb-12">
+                                    <h2 className="text-xl font-semibold text-gray-900 mb-6">Market insights for you</h2>
+                                    <div className="grid grid-cols-3 gap-6">
+                                        <div className="card-subtle bg-white rounded-xl p-6">
+                                            <div className="text-2xl font-bold text-gray-900 mb-1">{newThisWeek}</div>
+                                            <div className="text-sm text-gray-600">New listings this week</div>
+                                        </div>
+                                        <div className="card-subtle bg-white rounded-xl p-6">
+                                            <div className="text-2xl font-bold text-gray-900 mb-1">{avgDaysOnMarket !== null ? `${avgDaysOnMarket} days` : 'N/A'}</div>
+                                            <div className="text-sm text-gray-600">Average days on market</div>
+                                        </div>
+                                        <div className="card-subtle bg-white rounded-xl p-6">
+                                            <div className="text-2xl font-bold text-gray-900 mb-1">{verifiedSourceCount}</div>
+                                            <div className="text-sm text-gray-600">Verified sources monitored</div>
                                         </div>
                                     </div>
                                 </div>
@@ -1238,11 +1359,11 @@
                                     <div className="card-subtle bg-white rounded-xl p-8">
                                         <h3 className="text-sm font-semibold text-gray-500 uppercase mb-4">Preference Learning</h3>
                                         <p className="text-xs text-gray-500 mb-4">Weight multipliers adjust ±5% each time you rate a match.</p>
-                                        <div className="grid grid-cols-4 gap-3">
+                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                             {Object.entries(preferences.weights).map(([key, val]) => (
-                                                <div key={key} className="bg-indigo-50 rounded-lg p-3 text-center">
+                                                <div key={key} className="bg-brand-50 rounded-lg p-3 text-center">
                                                     <div className="text-[10px] font-semibold text-gray-500 uppercase mb-1">{key}</div>
-                                                    <div className="text-lg font-bold text-indigo-600">{val.toFixed(2)}x</div>
+                                                    <div className="text-lg font-bold text-brand-600">{val.toFixed(2)}x</div>
                                                 </div>
                                             ))}
                                         </div>
@@ -1265,7 +1386,15 @@
 
                                 {/* Properties */}
                                 <div>
-                                    <h2 className="text-xl font-semibold text-gray-900 mb-6">Matched Properties</h2>
+                                    <div className="flex items-end justify-between mb-6">
+                                        <div>
+                                            <h2 className="text-xl font-semibold text-gray-900">New matches</h2>
+                                            <p className="text-sm text-gray-500 mt-1">Properties we think you'll love</p>
+                                        </div>
+                                        <button onClick={() => setSelectedView('properties')} className="text-sm font-medium text-brand-600 hover:text-brand-700">
+                                            View all matches →
+                                        </button>
+                                    </div>
 
                                     {propertiesError && (
                                         <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-6 text-sm">
@@ -1306,7 +1435,7 @@
 
                         {selectedView === 'properties' && (
                             <div className="p-12">
-                                <h1 className="text-3xl font-bold text-gray-900 mb-8">All Properties</h1>
+                                <h1 className="text-3xl font-bold text-gray-900 mb-8">Matches</h1>
 
                                 {!propertiesLoading && !propertiesError && matchedProperties.length === 0 && (
                                     <div className="text-center py-16 text-gray-500 border border-dashed border-gray-300 rounded-xl">
@@ -1334,7 +1463,7 @@
 
                         {selectedView === 'saved' && (
                             <div className="p-12">
-                                <h1 className="text-3xl font-bold text-gray-900 mb-8">Saved Properties</h1>
+                                <h1 className="text-3xl font-bold text-gray-900 mb-8">Watchlist</h1>
                                 {shortlist.length === 0 ? (
                                     <p className="text-gray-600">Your saved properties will appear here.</p>
                                 ) : (
@@ -1412,7 +1541,7 @@
                 {showSearchingModal && (
                     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
                         <div className="bg-white rounded-2xl p-10 max-w-sm w-full mx-4 text-center shadow-2xl">
-                            <div className="w-14 h-14 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mx-auto mb-6"></div>
+                            <div className="w-14 h-14 border-4 border-brand-100 border-t-brand-600 rounded-full animate-spin mx-auto mb-6"></div>
                             <h3 className="text-lg font-semibold text-gray-900 mb-2">Searching for your perfect home</h3>
                             <p className="text-sm text-gray-500">We're checking real listings that match your criteria…</p>
                         </div>
@@ -1443,7 +1572,7 @@
                                             <p className="text-gray-600 mt-1">{prop.city}{prop.postal_code ? ` · ${prop.postal_code}` : ''}</p>
                                         </div>
                                         <div className="text-right">
-                                            <div className="text-3xl font-bold text-indigo-600">{score}%</div>
+                                            <div className="text-3xl font-bold text-brand-600">{score}%</div>
                                             <p className="text-xs text-gray-500 mt-1">Match Score</p>
                                         </div>
                                     </div>
@@ -1468,7 +1597,7 @@
                                     </div>
 
                                     <div className="mb-6">
-                                        <p className="text-xs font-semibold text-gray-500 uppercase mb-3">Why this matches</p>
+                                        <p className="text-xs font-semibold text-gray-500 uppercase mb-3">Why we think you'll love it</p>
                                         <div className="space-y-2">
                                             {[
                                                 { label: 'Budget', val: breakdown.budget },
@@ -1484,7 +1613,7 @@
                                                         </div>
                                                     </div>
                                                     <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
-                                                        <div className="bg-indigo-500 h-full" style={{width: `${f.val}%`}}></div>
+                                                        <div className="bg-brand-500 h-full" style={{width: `${f.val}%`}}></div>
                                                     </div>
                                                     <div className="w-8 text-xs font-semibold text-gray-700 text-right">{f.val}</div>
                                                 </div>
@@ -1538,7 +1667,7 @@
                                             {prop.agent_email && (
                                                 <a
                                                     href={`mailto:${prop.agent_email}?subject=${encodeURIComponent('Inquiry about ' + prop.address)}&body=${encodeURIComponent(`Hi ${prop.agent_name || ''},\n\nI'm interested in ${prop.address} (found via HomeRadar). Could you share more details or arrange a viewing?\n\nThanks!`)}`}
-                                                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition"
+                                                    className="px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition"
                                                 >
                                                     ✉️ Email Agent
                                                 </a>
