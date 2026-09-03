@@ -64,6 +64,14 @@
         const API_URL = 'https://homeradar-backend.onrender.com';
         let authToken = localStorage.getItem('homeradar_token');
 
+        // Hover text for the "Why this matches" factors, shown via the title attribute on each row.
+        const FACTOR_EXPLANATIONS = {
+            Budget: 'How well the price fits your budget range \u2013 cheaper listings within your range score higher.',
+            Location: 'Whether the listing is in one of your selected areas.',
+            Market: 'How fresh the listing is \u2013 newer listings score higher than ones that have been on the market longer.',
+            Value: 'How the price per m\u00b2 compares to similar properties in HomeRadar \u2013 priced below average scores higher.'
+        };
+
         const mockProperties = [
             {
                 id: 1,
@@ -337,8 +345,8 @@
                                     { label: 'Market', val: breakdown.market },
                                     { label: 'Value', val: breakdown.value }
                                 ].map(f => (
-                                    <div key={f.label} className="flex items-center gap-3">
-                                        <div className="w-16 text-xs text-gray-500">{f.label}</div>
+                                    <div key={f.label} className="flex items-center gap-3" title={FACTOR_EXPLANATIONS[f.label]}>
+                                        <div className="w-16 text-xs text-gray-500 border-b border-dotted border-gray-400 cursor-help">{f.label}</div>
                                         <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
                                             <div className="bg-indigo-500 h-full" style={{width: `${f.val}%`}}></div>
                                         </div>
@@ -456,6 +464,27 @@
             const [propertiesLoading, setPropertiesLoading] = useState(false);
             const [propertiesError, setPropertiesError] = useState(null);
             const [showSearchingModal, setShowSearchingModal] = useState(false);
+            const [detailsLoading, setDetailsLoading] = useState(false);
+
+            // Lazily fetches the full listing (description, bathrooms, energy label, monthly
+            // expense, lot size, and the agent's real phone/email) the first time it's opened,
+            // so the user never has to leave HomeRadar to see what's on the original listing.
+            useEffect(() => {
+                if (!selectedProperty || selectedProperty.description !== null && selectedProperty.description !== undefined) return;
+                let cancelled = false;
+                setDetailsLoading(true);
+                fetch(`${API_URL}/api/properties/${selectedProperty.id}`)
+                    .then(res => res.ok ? res.json() : null)
+                    .then(fullProperty => {
+                        if (!cancelled && fullProperty) {
+                            setSelectedProperty(prev => (prev && prev.id === fullProperty.id) ? { ...prev, ...fullProperty } : prev);
+                            setApiProperties(prev => prev.map(p => p.id === fullProperty.id ? { ...p, ...fullProperty } : p));
+                        }
+                    })
+                    .catch(error => console.error('Error loading listing details:', error))
+                    .finally(() => { if (!cancelled) setDetailsLoading(false); });
+                return () => { cancelled = true; };
+            }, [selectedProperty?.id]);
 
             const fetchProperties = async () => {
                 try {
@@ -1389,8 +1418,8 @@
                                                 { label: 'Market', val: breakdown.market },
                                                 { label: 'Value', val: breakdown.value }
                                             ].map(f => (
-                                                <div key={f.label} className="flex items-center gap-3">
-                                                    <div className="w-16 text-xs text-gray-500">{f.label}</div>
+                                                <div key={f.label} className="flex items-center gap-3" title={FACTOR_EXPLANATIONS[f.label]}>
+                                                    <div className="w-16 text-xs text-gray-500 border-b border-dotted border-gray-400 cursor-help">{f.label}</div>
                                                     <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
                                                         <div className="bg-indigo-500 h-full" style={{width: `${f.val}%`}}></div>
                                                     </div>
@@ -1402,10 +1431,12 @@
 
                                     <div className="mb-6">
                                         <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Description</p>
-                                        <p className="text-gray-700 text-sm">{prop.description || 'No additional description available for this listing.'}</p>
+                                        <p className="text-gray-700 text-sm">
+                                            {detailsLoading ? 'Loading full listing details…' : (prop.description || 'No additional description available for this listing.')}
+                                        </p>
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
+                                    <div className="grid grid-cols-3 gap-4 mb-6 text-sm">
                                         <div>
                                             <p className="text-xs text-gray-500 uppercase mb-1">Property Type</p>
                                             <p className="text-gray-900">{prop.property_type || 'N/A'}</p>
@@ -1417,6 +1448,18 @@
                                         <div>
                                             <p className="text-xs text-gray-500 uppercase mb-1">Listed</p>
                                             <p className="text-gray-900">{prop.listing_date ? new Date(prop.listing_date).toLocaleDateString('da-DK') : 'N/A'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-gray-500 uppercase mb-1">Energy Label</p>
+                                            <p className="text-gray-900">{prop.energy_label || 'N/A'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-gray-500 uppercase mb-1">Monthly Expense</p>
+                                            <p className="text-gray-900">{prop.monthly_expense ? `${Number(prop.monthly_expense).toLocaleString('da-DK')} DKK` : 'N/A'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-gray-500 uppercase mb-1">Lot Size</p>
+                                            <p className="text-gray-900">{prop.lot_area ? `${prop.lot_area} m²` : 'N/A'}</p>
                                         </div>
                                         <div>
                                             <p className="text-xs text-gray-500 uppercase mb-1">Source</p>
@@ -1442,12 +1485,15 @@
                                                     📞 {prop.agent_phone}
                                                 </a>
                                             )}
-                                            {!prop.agent_email && !prop.agent_phone && prop.source_url && (
+                                            {!prop.agent_email && !prop.agent_phone && prop.source_url && !detailsLoading && (
                                                 <a href={prop.source_url} target="_blank" rel="noopener noreferrer" className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition">
                                                     View original listing to contact the agent →
                                                 </a>
                                             )}
-                                            {!prop.agent_email && !prop.agent_phone && !prop.source_url && (
+                                            {!prop.agent_email && !prop.agent_phone && detailsLoading && (
+                                                <p className="text-sm text-gray-500">Checking for agent contact info…</p>
+                                            )}
+                                            {!prop.agent_email && !prop.agent_phone && !prop.source_url && !detailsLoading && (
                                                 <p className="text-sm text-gray-500">No agent contact info available for this listing yet.</p>
                                             )}
                                         </div>
