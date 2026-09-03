@@ -365,26 +365,28 @@
             const [apiProperties, setApiProperties] = useState([]);
             const [propertiesLoading, setPropertiesLoading] = useState(false);
             const [propertiesError, setPropertiesError] = useState(null);
-            useEffect(() => {
-                const fetchProperties = async () => {
-                    try {
-                        setPropertiesLoading(true);
-                        const response = await fetch(`${API_URL}/api/properties`);
-                        if (response.ok) {
-                            const data = await response.json();
-                            setApiProperties(data.data || []);
-                            setPropertiesError(null);
-                        } else {
-                            setPropertiesError('Failed to load properties from the server.');
-                        }
-                    } catch (error) {
-                        console.error('Error fetching properties:', error);
-                        setPropertiesError('Could not reach the server. Check your connection and try again.');
-                    } finally {
-                        setPropertiesLoading(false);
+            const [showSearchingModal, setShowSearchingModal] = useState(false);
+
+            const fetchProperties = async () => {
+                try {
+                    setPropertiesLoading(true);
+                    const response = await fetch(`${API_URL}/api/properties`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        setApiProperties(data.data || []);
+                        setPropertiesError(null);
+                    } else {
+                        setPropertiesError('Failed to load properties from the server.');
                     }
-                };
-                
+                } catch (error) {
+                    console.error('Error fetching properties:', error);
+                    setPropertiesError('Could not reach the server. Check your connection and try again.');
+                } finally {
+                    setPropertiesLoading(false);
+                }
+            };
+
+            useEffect(() => {
                 if (currentUser) {
                     fetchProperties();
                     // Refresh every 30 seconds (for scraping updates)
@@ -576,6 +578,7 @@
             // Merges into existing preferences (rather than replacing wholesale) so learned weights survive.
             const applyCriteria = async (criteria, navigateToDashboard) => {
                 const merged = { ...preferences, ...criteria };
+                setShowSearchingModal(true);
                 try {
                     const response = await fetch(`${API_URL}/api/users/preferences`, {
                         method: 'PUT',
@@ -596,16 +599,20 @@
 
                     setPreferences(merged);
 
+                    // Give the backend's live property search a moment, then refresh the feed
+                    // so newly-found matches show up as soon as the modal closes.
+                    await new Promise(resolve => setTimeout(resolve, 4000));
+                    await fetchProperties();
+
                     if (navigateToDashboard) {
                         setPreferencesSetup(false);
                         setSelectedView('dashboard');
-                        alert('✅ Preferences saved!\n\n🔥 Backend is now searching local agents\' "coming soon" listings and Instagram for matching properties...\n\nCheck back in a few seconds for new listings!');
-                    } else {
-                        alert('✅ Preferences updated!');
                     }
                 } catch (error) {
                     console.error('Save preferences error:', error);
                     alert(`Connection error: ${error.message}`);
+                } finally {
+                    setShowSearchingModal(false);
                 }
             };
 
@@ -916,6 +923,7 @@
             // Preferences Setup (single page — budget, size/rooms, area of interest, nice-to-haves)
             if (preferencesSetup) {
                 return (
+                    <>
                     <div className="min-h-screen bg-white p-8">
                         <div className="max-w-2xl mx-auto">
                             <div className="mb-12">
@@ -934,6 +942,16 @@
                             </div>
                         </div>
                     </div>
+                    {showSearchingModal && (
+                        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+                            <div className="bg-white rounded-2xl p-10 max-w-sm w-full mx-4 text-center shadow-2xl">
+                                <div className="w-14 h-14 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mx-auto mb-6"></div>
+                                <h3 className="text-lg font-semibold text-gray-900 mb-2">Searching for your perfect home</h3>
+                                <p className="text-sm text-gray-500">We're checking real listings that match your criteria…</p>
+                            </div>
+                        </div>
+                    )}
+                    </>
                 );
             }
 
@@ -943,6 +961,7 @@
             const learningAccuracy = feedbackHistory.length > 0 ? Math.round((relevantFeedbackCount / feedbackHistory.length) * 100) : 0;
 
             return (
+                <>
                 <div className="min-h-screen bg-white flex">
                     {/* Sidebar */}
                     <div className="w-64 border-r border-gray-200 fixed left-0 top-0 bottom-0 bg-white">
@@ -1278,6 +1297,16 @@
                         )}
                     </div>
                 </div>
+                {showSearchingModal && (
+                    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+                        <div className="bg-white rounded-2xl p-10 max-w-sm w-full mx-4 text-center shadow-2xl">
+                            <div className="w-14 h-14 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mx-auto mb-6"></div>
+                            <h3 className="text-lg font-semibold text-gray-900 mb-2">Searching for your perfect home</h3>
+                            <p className="text-sm text-gray-500">We're checking real listings that match your criteria…</p>
+                        </div>
+                    </div>
+                )}
+                </>
             );
         }
 
