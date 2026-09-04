@@ -167,6 +167,43 @@
             }
         ];
 
+        const POSTAL_AREA_NAMES = {
+            '1000': 'Copenhagen', '1050': 'Copenhagen', '1100': 'Copenhagen', '1150': 'Copenhagen', '1200': 'Copenhagen', '1250': 'Copenhagen', '1300': 'Copenhagen', '1350': 'Copenhagen', '1400': 'Copenhagen', '1450': 'Copenhagen', '1500': 'Copenhagen',
+            '2000': 'Frederiksberg', '2100': 'Copenhagen', '2150': 'Nordhavn', '2200': 'Copenhagen', '2300': 'Copenhagen', '2400': 'Copenhagen', '2450': 'Copenhagen', '2500': 'Valby', '2600': 'Glostrup', '2610': 'Rødovre', '2620': 'Albertslund', '2630': 'Taastrup', '2650': 'Hvidovre', '2660': 'Brøndby Strand', '2700': 'Brønshøj', '2720': 'Vanløse', '2730': 'Herlev', '2800': 'Kongens Lyngby',
+            '3000': 'Helsingør', '3400': 'Hillerød', '4000': 'Roskilde', '4100': 'Ringsted', '4200': 'Slagelse', '4300': 'Holbæk', '4600': 'Køge', '4700': 'Næstved', '4800': 'Nykøbing Falster',
+            '5000': 'Odense', '5200': 'Odense', '5210': 'Odense', '5220': 'Odense', '5230': 'Odense', '5240': 'Odense', '5250': 'Odense', '5260': 'Odense', '5270': 'Odense', '5300': 'Kerteminde', '5500': 'Middelfart', '5600': 'Faaborg', '5700': 'Svendborg', '5800': 'Nyborg', '5800': 'Nyborg',
+            '6000': 'Kolding', '6100': 'Haderslev', '6200': 'Aabenraa', '6300': 'Gråsten', '6400': 'Sønderborg', '6500': 'Vojens', '6600': 'Vejen', '6700': 'Esbjerg', '6800': 'Varde', '6900': 'Skjern', '7000': 'Fredericia', '7100': 'Vejle', '7200': 'Grindsted', '7300': 'Jelling', '7400': 'Herning', '7500': 'Holstebro', '7600': 'Struer', '7700': 'Thisted', '7800': 'Skive', '8000': 'Aarhus', '8200': 'Aarhus', '8210': 'Aarhus', '8220': 'Brabrand', '8230': 'Aarhus', '8240': 'Risskov', '8250': 'Egå', '8260': 'Viby J', '8270': 'Højbjerg', '8300': 'Odder', '8400': 'Ebeltoft', '8500': 'Grenaa', '8600': 'Silkeborg', '8700': 'Horsens', '8800': 'Viborg', '8900': 'Randers', '9000': 'Aalborg', '9200': 'Aalborg', '9210': 'Aalborg', '9220': 'Aalborg', '9230': 'Svenstrup J', '9400': 'Nørresundby', '9500': 'Hobro', '9600': 'Aars', '9700': 'Brønderslev', '9800': 'Hjørring', '9900': 'Frederikshavn'
+        };
+
+        const canonicalAreaName = (value) => {
+            const trimmed = String(value || '').trim();
+            if (!trimmed) return '';
+            if (/^\d{4}$/.test(trimmed)) return POSTAL_AREA_NAMES[trimmed] || '';
+            const normalized = trimmed.toLocaleLowerCase('da-DK');
+            if (normalized === 'københavn') return 'Copenhagen';
+            return normalized.replace(/(^|[\s-])\p{L}/gu, letter => letter.toLocaleUpperCase('da-DK'));
+        };
+
+        const sameArea = (left, right) => left.localeCompare(right, 'da-DK', { sensitivity: 'base' }) === 0;
+
+        // Maps free-text feedback to the four scoring dimensions, so a user's written reason
+        // (e.g. "too close to a noisy street") actually steers what we learn instead of nudging
+        // every weight equally. Returns the dimensions whose keywords appear in the reason.
+        const FEEDBACK_SIGNAL_KEYWORDS = {
+            budget: ['price', 'expensive', 'cheap', 'cheaper', 'afford', 'affordable', 'budget', 'cost', 'costly', 'overpriced', 'pricey'],
+            location: ['location', 'area', 'neighbourhood', 'neighborhood', 'close', 'closer', 'near', 'far', 'distance', 'commute', 'work', 'school', 'transport', 'transit', 'metro', 'station', 'central', 'centre', 'center', 'quiet', 'noisy', 'noise', 'street', 'traffic', 'safe', 'safety', 'walk'],
+            market: ['market', 'fresh', 'just listed', 'new listing', 'days on market', 'stale', 'resale', 'investment', 'appreciation', 'demand'],
+            value: ['value', 'size', 'space', 'spacious', 'small', 'tiny', 'big', 'large', 'room', 'bedroom', 'bathroom', 'sqm', 'm2', 'square', 'condition', 'renovated', 'renovation', 'modern', 'old', 'dated', 'year', 'built', 'quality', 'layout', 'light', 'bright', 'dark', 'garden', 'balcony', 'view', 'floor'],
+        };
+
+        const analyzeFeedbackReason = (reason) => {
+            const text = String(reason || '').toLowerCase();
+            if (!text.trim()) return [];
+            return Object.keys(FEEDBACK_SIGNAL_KEYWORDS).filter(dim =>
+                FEEDBACK_SIGNAL_KEYWORDS[dim].some(kw => text.includes(kw))
+            );
+        };
+
         // Single-page criteria form: reused for first-time setup and for editing preferences from the Profile page.
         function CriteriaForm({ initial, onSave, submitLabel, allCities, allFeatures }) {
             const [budgetMin, setBudgetMin] = useState(initial.budget?.min || 0);
@@ -175,18 +212,27 @@
             const [sizeMode, setSizeMode] = useState(initial.sizeMode || 'size');
             const [minSize, setMinSize] = useState(initial.minSize || 80);
             const [minRooms, setMinRooms] = useState(initial.minRooms || 3);
-            const [areas, setAreas] = useState(initial.cities || []);
+            const [areas, setAreas] = useState((initial.cities || []).map(canonicalAreaName).filter(Boolean));
             const [areaInput, setAreaInput] = useState('');
             const [features, setFeatures] = useState(initial.features || []);
             const [customFeature, setCustomFeature] = useState('');
 
             const addArea = () => {
-                const val = areaInput.trim();
-                if (val && !areas.includes(val)) setAreas([...areas, val]);
+                const val = canonicalAreaName(areaInput);
+                if (!val) {
+                    setAreaInput('');
+                    return;
+                }
+                if (!areas.some(area => sameArea(area, val))) setAreas([...areas, val]);
                 setAreaInput('');
             };
-            const removeArea = (a) => setAreas(areas.filter(x => x !== a));
-            const toggleSuggestedArea = (c) => setAreas(areas.includes(c) ? areas.filter(x => x !== c) : [...areas, c]);
+            const removeArea = (a) => setAreas(areas.filter(x => !sameArea(x, a)));
+            const toggleSuggestedArea = (c) => {
+                const canonical = canonicalAreaName(c);
+                setAreas(areas.some(area => sameArea(area, canonical))
+                    ? areas.filter(area => !sameArea(area, canonical))
+                    : [...areas, canonical]);
+            };
 
             const toggleFeature = (f) => setFeatures(prev => prev.includes(f) ? prev.filter(x => x !== f) : [...prev, f]);
             const addCustomFeature = () => {
@@ -273,7 +319,7 @@
                                 <button
                                     key={c}
                                     onClick={() => toggleSuggestedArea(c)}
-                                    className={`px-3 py-1 rounded-full text-sm font-medium transition ${areas.includes(c) ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                                    className={`px-3 py-1 rounded-full text-sm font-medium transition ${areas.some(area => sameArea(area, c)) ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
                                 >
                                     {c}
                                 </button>
@@ -283,7 +329,7 @@
                             <div className="flex flex-wrap gap-2">
                                 {areas.map(a => (
                                     <span key={a} className="bg-brand-50 text-brand-700 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-2">
-                                        {a}
+                                        {canonicalAreaName(a)}
                                         <button onClick={() => removeArea(a)} className="text-brand-400 hover:text-brand-700">×</button>
                                     </span>
                                 ))}
@@ -442,6 +488,7 @@
         function App() {
             const [currentUser, setCurrentUser] = useState(null);
             const [authChecked, setAuthChecked] = useState(false);
+            const [showLandingPage, setShowLandingPage] = useState(false);
             const [showAuthModal, setShowAuthModal] = useState(false);
             const [authMode, setAuthMode] = useState('signup');
             const [signupForm, setSignupForm] = useState({ name: '', email: '', password: '' });
@@ -451,6 +498,8 @@
             const [selectedView, setSelectedView] = useState('dashboard');
             const [shortlist, setShortlist] = useState([]);
             const [feedbackHistory, setFeedbackHistory] = useState([]);
+            const [feedbackPrompt, setFeedbackPrompt] = useState(null);
+            const [feedbackReason, setFeedbackReason] = useState('');
             const [selectedProperty, setSelectedProperty] = useState(null);
             const [forgotEmail, setForgotEmail] = useState('');
             const [resetInfo, setResetInfo] = useState(null);
@@ -530,7 +579,12 @@
                         if (response.ok) {
                             const data = await response.json();
                             if (data.preferences) {
-                                setPreferences(prev => ({ ...prev, ...data.preferences }));
+                                const savedPreferences = { ...data.preferences };
+                                if (Array.isArray(savedPreferences.cities)) {
+                                    savedPreferences.cities = savedPreferences.cities.map(canonicalAreaName).filter(Boolean);
+                                    savedPreferences.city = savedPreferences.cities[0] || savedPreferences.city;
+                                }
+                                setPreferences(prev => ({ ...prev, ...savedPreferences }));
                                 if (Array.isArray(data.preferences.feedbackHistory)) {
                                     setFeedbackHistory(data.preferences.feedbackHistory);
                                 }
@@ -595,16 +649,21 @@
                 try {
                     setPropertiesLoading(true);
                     const response = await fetch(`${API_URL}/api/properties`);
-                    if (response.ok) {
+                    if (response.ok || response.status === 304) {
+                        if (response.status === 304) return apiProperties;
                         const data = await response.json();
-                        setApiProperties(data.data || []);
+                        const properties = data.data || [];
+                        setApiProperties(properties);
                         setPropertiesError(null);
+                        return properties;
                     } else {
                         setPropertiesError('Failed to load properties from the server.');
+                        return [];
                     }
                 } catch (error) {
                     console.error('Error fetching properties:', error);
                     setPropertiesError('Could not reach the server. Check your connection and try again.');
+                    return [];
                 } finally {
                     setPropertiesLoading(false);
                 }
@@ -613,8 +672,7 @@
             useEffect(() => {
                 if (currentUser) {
                     fetchProperties();
-                    // Refresh every 30 seconds (for scraping updates)
-                    const interval = setInterval(fetchProperties, 30000);
+                    const interval = setInterval(fetchProperties, 10000);
                     return () => clearInterval(interval);
                 }
             }, [currentUser]);
@@ -687,18 +745,29 @@
                 return Math.max(1, Math.min(100, Math.round(weighted)));
             };
 
-            const handleFeedback = (prop, relevant) => {
-                const updatedHistory = [{ id: prop.id, relevant, timestamp: new Date() }, ...feedbackHistory].slice(0, 50);
+            const requestFeedback = (prop, relevant) => {
+                setFeedbackReason('');
+                setFeedbackPrompt({ prop, relevant });
+            };
+
+            const handleFeedback = (prop, relevant, reason = '') => {
+                const trimmedReason = reason.trim();
+                const signals = analyzeFeedbackReason(trimmedReason);
+                const updatedHistory = [{ id: prop.id, relevant, reason: trimmedReason, signals, timestamp: new Date() }, ...feedbackHistory].slice(0, 50);
                 setFeedbackHistory(updatedHistory);
 
                 const direction = relevant ? 1 : -1;
-                const adjust = (w) => Math.max(0.5, Math.min(2.0, w + direction * 0.05));
-                const updatedWeights = {
-                    budget: adjust(preferences.weights.budget),
-                    location: adjust(preferences.weights.location),
-                    market: adjust(preferences.weights.market),
-                    value: adjust(preferences.weights.value)
-                };
+                const clamp = (w) => Math.max(0.5, Math.min(2.0, w));
+                // When the written reason points at specific dimensions, learn those more strongly
+                // and leave the rest untouched; with no usable text, fall back to a small nudge across all four.
+                const targeted = signals.length > 0;
+                const updatedWeights = {};
+                ['budget', 'location', 'market', 'value'].forEach(dim => {
+                    const base = preferences.weights[dim];
+                    updatedWeights[dim] = targeted
+                        ? (signals.includes(dim) ? clamp(base + direction * 0.1) : base)
+                        : clamp(base + direction * 0.05);
+                });
                 const updatedPreferences = { ...preferences, weights: updatedWeights, feedbackHistory: updatedHistory };
                 setPreferences(updatedPreferences);
 
@@ -708,6 +777,35 @@
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
                     body: JSON.stringify({ preferences: { ...updatedPreferences, city: updatedPreferences.cities[0] } })
                 }).catch(error => console.error('Error saving feedback:', error));
+
+                // Record structured feedback (reason + detected signals + a snapshot of the listing) to a
+                // queryable table, so it can be analysed across users/time and later fed to an LLM.
+                fetch(`${API_URL}/api/users/feedback`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+                    body: JSON.stringify({
+                        propertyId: prop.id,
+                        relevant,
+                        reason: trimmedReason,
+                        signals,
+                        propertySnapshot: {
+                            price: prop.price ?? null,
+                            city: prop.city ?? null,
+                            postal_code: prop.postal_code ?? null,
+                            sqm: prop.sqm ?? prop.size ?? null,
+                            rooms: prop.bedrooms ?? prop.rooms ?? null,
+                            property_type: prop.property_type ?? null,
+                            source: prop.source ?? null
+                        }
+                    })
+                }).catch(error => console.error('Error recording feedback:', error));
+            };
+
+            const submitFeedback = () => {
+                if (!feedbackPrompt) return;
+                handleFeedback(feedbackPrompt.prop, feedbackPrompt.relevant, feedbackReason);
+                setFeedbackPrompt(null);
+                setFeedbackReason('');
             };
 
             const toggleShortlist = (prop) => {
@@ -742,6 +840,7 @@
                             email: signupForm.email,
                             id: data.id 
                         });
+                        setShowLandingPage(false);
                         setPreferencesSetup(true);
                         setShowAuthModal(false);
                         setSignupForm({ name: '', email: '', password: '' });
@@ -782,6 +881,7 @@
                             email: loginForm.email,
                             id: data.id
                         });
+                        setShowLandingPage(false);
                         setShowAuthModal(false);
                         setLoginForm({ email: '', password: '' });
                         alert('? Logged in successfully!');
@@ -797,8 +897,22 @@
             // Shared save path for both first-time setup and later edits from the Profile page.
             // Merges into existing preferences (rather than replacing wholesale) so learned weights survive.
             const applyCriteria = async (criteria, navigateToDashboard) => {
-                const merged = { ...preferences, ...criteria };
+                const merged = {
+                    ...preferences,
+                    ...criteria,
+                    cities: (criteria.cities || preferences.cities || []).map(canonicalAreaName).filter(Boolean)
+                };
                 setShowSearchingModal(true);
+                const propertyMatchesCriteria = (property) => {
+                    const price = Number(property.price) || 0;
+                    const areaMatch = (merged.cities || []).some(area => matchesArea(area, property));
+                    const size = Number(property.sqm || property.size) || 0;
+                    const rooms = Number(property.bedrooms || property.rooms) || 0;
+                    const sizeMatch = merged.sizeMode === 'rooms'
+                        ? (!merged.minRooms || !rooms || rooms >= merged.minRooms)
+                        : (!merged.minSize || !size || size >= merged.minSize);
+                    return areaMatch && (!price || (price >= merged.budget.min && price <= merged.budget.max)) && sizeMatch;
+                };
                 try {
                     const response = await fetch(`${API_URL}/api/users/preferences`, {
                         method: 'PUT',
@@ -819,15 +933,17 @@
 
                     setPreferences(merged);
 
-                    // Give the backend's live property search a moment, then refresh the feed
-                    // so newly-found matches show up as soon as the modal closes.
-                    await new Promise(resolve => setTimeout(resolve, 4000));
-                    await fetchProperties();
+                    let latestProperties = [];
+                    for (let attempt = 0; attempt < 15; attempt++) {
+                        await new Promise(resolve => setTimeout(resolve, attempt === 0 ? 1500 : 2000));
+                        latestProperties = await fetchProperties();
+                        if (latestProperties.some(propertyMatchesCriteria)) break;
+                    }
 
                     if (navigateToDashboard) {
                         setPreferencesSetup(false);
-                        setSelectedView('dashboard');
                     }
+                    if (latestProperties.some(propertyMatchesCriteria)) setSelectedView('properties');
                 } catch (error) {
                     console.error('Save preferences error:', error);
                     alert(`Connection error: ${error.message}`);
@@ -952,7 +1068,7 @@
             }
 
             // Landing Page
-            if (!currentUser) {
+            if (!currentUser || showLandingPage) {
                 return (
                     <div className="min-h-screen bg-[#FAF9F6]">
                         {/* Navigation */}
@@ -963,7 +1079,7 @@
                                     <div className="text-2xl font-bold"><span className="text-gray-900">Home</span><span className="text-brand-600">Radar</span></div>
                                 </div>
                                 <button 
-                                    onClick={() => { setAuthMode('login'); setShowAuthModal(true); }} 
+                                    onClick={() => { setShowLandingPage(false); setAuthMode('login'); setShowAuthModal(true); }} 
                                     className="px-6 py-2 text-gray-700 border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition"
                                 >
                                     Sign In
@@ -978,10 +1094,10 @@
                                     Find your perfect home
                                 </h1>
                                 <p className="text-xl text-gray-600 mb-12 leading-relaxed">
-                                    HomeRadar uses advanced intelligence to understand your preferences and match you with properties that truly fit your lifestyle and investment goals.
+                                    HomeRadar learns what matters to you, searches trusted channels, and brings the homes that fit your life into one clear view.
                                 </p>
                                 <button 
-                                    onClick={() => { setAuthMode('signup'); setShowAuthModal(true); }} 
+                                    onClick={() => { setShowLandingPage(false); setAuthMode('signup'); setShowAuthModal(true); }} 
                                     className="px-8 py-3 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition"
                                 >
                                     Get Started
@@ -1002,12 +1118,12 @@
                                     <div>
                                         <div className="text-sm font-semibold text-brand-600 mb-3">STEP TWO</div>
                                         <h3 className="text-xl font-semibold text-gray-900 mb-3">Intelligent Matching</h3>
-                                        <p className="text-gray-600">Our AI analyzes hundreds of properties and identifies the best matches for your specific needs.</p>
+                                        <p className="text-gray-600">Our intelligent design identifies the right matches across several channels, so you get the properties that fit your needs every time.</p>
                                     </div>
                                     <div>
                                         <div className="text-sm font-semibold text-brand-600 mb-3">STEP THREE</div>
-                                        <h3 className="text-xl font-semibold text-gray-900 mb-3">Expert Insights</h3>
-                                        <p className="text-gray-600">Get detailed market analysis, property scoring, and expert recommendations to guide your decision.</p>
+                                        <h3 className="text-xl font-semibold text-gray-900 mb-3">Learn &amp; Explore</h3>
+                                        <p className="text-gray-600">Your preferences keep getting smarter while listing details, market insights, and address data stay together in one clear place.</p>
                                     </div>
                                 </div>
                             </div>
@@ -1216,10 +1332,10 @@
                     {/* Sidebar */}
                     <div className="w-64 border-r border-gray-200 fixed left-0 top-0 bottom-0 bg-white">
                         <div className="p-8 border-b border-gray-200">
-                            <div className="flex items-center gap-2">
+                            <button onClick={() => { setSelectedProperty(null); setShowLandingPage(true); }} className="flex items-center gap-2 text-left" aria-label="Go to HomeRadar homepage">
                                 <img src={LOGO_ICON_URL} alt="HomeRadar" className="h-9 w-9" />
                                 <h1 className="text-2xl font-bold"><span className="text-gray-900">Home</span><span className="text-brand-600">Radar</span></h1>
-                            </div>
+                            </button>
                         </div>
                         
                         <nav className="p-6 space-y-2">
@@ -1401,6 +1517,7 @@
                                                 {feedbackHistory.slice(0, 5).map((f, idx) => (
                                                     <div key={idx} className="text-xs text-gray-600">
                                                         {f.relevant ? '👍 Relevant' : '👎 Not for me'}
+                                                        {f.reason && <span className="text-gray-500">: {f.reason}</span>}
                                                     </div>
                                                 ))}
                                             </div>
@@ -1448,7 +1565,7 @@
                                                 breakdown={calculateBreakdown(prop)}
                                                 isShortlisted={!!shortlist.find(p => p.id === prop.id)}
                                                 onToggleShortlist={toggleShortlist}
-                                                onFeedback={handleFeedback}
+                                                onFeedback={requestFeedback}
                                                 onOpenDetails={setSelectedProperty}
                                             />
                                         ))}
@@ -1477,7 +1594,7 @@
                                             breakdown={calculateBreakdown(prop)}
                                             isShortlisted={!!shortlist.find(p => p.id === prop.id)}
                                             onToggleShortlist={toggleShortlist}
-                                            onFeedback={handleFeedback}
+                                            onFeedback={requestFeedback}
                                             onOpenDetails={setSelectedProperty}
                                         />
                                     ))}
@@ -1500,7 +1617,7 @@
                                                 breakdown={calculateBreakdown(prop)}
                                                 isShortlisted={true}
                                                 onToggleShortlist={toggleShortlist}
-                                                onFeedback={handleFeedback}
+                                                onFeedback={requestFeedback}
                                                 onOpenDetails={setSelectedProperty}
                                             />
                                         ))}
@@ -1562,6 +1679,36 @@
                         )}
                     </div>
                 </div>
+                {feedbackPrompt && (
+                    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[60] p-4" onClick={() => setFeedbackPrompt(null)}>
+                        <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-start justify-between gap-4 mb-2">
+                                <div>
+                                    <p className={`text-xs font-semibold uppercase tracking-wide mb-1 ${feedbackPrompt.relevant ? 'text-green-700' : 'text-gray-500'}`}>
+                                        {feedbackPrompt.relevant ? '👍 Relevant match' : '👎 Not for me'}
+                                    </p>
+                                    <h3 className="text-xl font-semibold text-gray-900">What made you choose this?</h3>
+                                </div>
+                                <button onClick={() => setFeedbackPrompt(null)} className="text-2xl leading-none text-gray-400 hover:text-gray-700" aria-label="Close">×</button>
+                            </div>
+                            <p className="text-sm text-gray-600 mb-5">Your explanation helps HomeRadar understand what matters to you.</p>
+                            <textarea
+                                autoFocus
+                                value={feedbackReason}
+                                onChange={(e) => setFeedbackReason(e.target.value)}
+                                placeholder={feedbackPrompt.relevant ? 'e.g. Great bedroom size and close to work' : 'e.g. Too close to a noisy street'}
+                                rows="4"
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-brand-200"
+                            />
+                            <div className="flex justify-end gap-3 mt-5">
+                                <button onClick={() => setFeedbackPrompt(null)} className="px-4 py-2 text-gray-600 font-medium hover:text-gray-900">Cancel</button>
+                                <button onClick={submitFeedback} className={`px-5 py-2 text-white rounded-lg font-medium ${feedbackPrompt.relevant ? 'bg-green-700 hover:bg-green-800' : 'bg-gray-800 hover:bg-gray-900'}`}>
+                                    Save feedback
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
                 {showSearchingModal && (
                     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
                         <div className="bg-white rounded-2xl p-10 max-w-sm w-full mx-4 text-center shadow-2xl">
@@ -1762,10 +1909,10 @@
                                         <button onClick={() => toggleShortlist(prop)} className={`px-4 py-3 rounded-lg font-medium transition ${isShortlisted ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100'}`}>
                                             {isShortlisted ? '❤️ Saved' : '🤍 Save'}
                                         </button>
-                                        <button onClick={() => handleFeedback(prop, true)} className="px-4 py-3 border border-green-200 text-green-700 rounded-lg font-medium hover:bg-green-50 transition">
+                                        <button onClick={() => requestFeedback(prop, true)} className="px-4 py-3 border border-green-200 text-green-700 rounded-lg font-medium hover:bg-green-50 transition">
                                             👍 Relevant
                                         </button>
-                                        <button onClick={() => handleFeedback(prop, false)} className="px-4 py-3 border border-gray-200 text-gray-500 rounded-lg font-medium hover:bg-gray-50 transition">
+                                        <button onClick={() => requestFeedback(prop, false)} className="px-4 py-3 border border-gray-200 text-gray-500 rounded-lg font-medium hover:bg-gray-50 transition">
                                             👎 Not for me
                                         </button>
                                         {prop.source_url && (
