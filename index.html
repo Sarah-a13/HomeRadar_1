@@ -1101,24 +1101,18 @@
 
                         {/* Hero Section */}
                         <div className="max-w-7xl mx-auto px-8 py-24">
-                            <div className="grid lg:grid-cols-2 gap-16 items-center">
-                                <div>
+                            <div className="flex flex-col items-center text-center">
+                                <div className="max-w-2xl">
                                     <h1 className="text-6xl font-bold text-gray-900 mb-6 leading-tight">
                                         Find your perfect home
                                     </h1>
-                                    <p className="text-xl text-gray-600 mb-12 leading-relaxed">
+                                    <p className="text-xl text-gray-600 leading-relaxed">
                                         HomeRadar learns what matters to you, searches trusted channels, and brings the homes that fit your life into one clear view.
                                     </p>
-                                    <button
-                                        onClick={() => { setShowLandingPage(false); setAuthMode('signup'); setShowAuthModal(true); }}
-                                        className="px-8 py-3 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition"
-                                    >
-                                        Get Started
-                                    </button>
                                 </div>
 
                                 {/* Illustration: a live radar sweeping trusted channels and surfacing matched homes */}
-                                <div className="relative mx-auto w-full max-w-md">
+                                <div className="relative mx-auto w-full max-w-md mt-16">
                                     <div className="relative aspect-square">
                                         <svg viewBox="0 0 320 320" className="w-full h-full" role="img" aria-label="HomeRadar scanning homes across trusted channels and surfacing your best matches">
                                             <defs>
@@ -1217,6 +1211,13 @@
                                         Continuously scanning trusted channels to surface homes matched to you.
                                     </p>
                                 </div>
+
+                                <button
+                                    onClick={() => { setShowLandingPage(false); setAuthMode('signup'); setShowAuthModal(true); }}
+                                    className="mt-16 px-8 py-3 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition"
+                                >
+                                    Get Started
+                                </button>
                             </div>
                         </div>
 
