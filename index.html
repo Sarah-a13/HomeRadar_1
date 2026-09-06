@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>HomeRadar — We find homes before they're public</title>
+<title>HomeRadar — every channel a home appears on, one radar</title>
 
 <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
@@ -2361,7 +2361,7 @@ function LiveRadar() {
 function Landing({ user, hasRadar, onEnter, onSignIn }) {
   const steps = [
     { n: '01', t: 'Calibrate', d: 'Tell us your ceiling, your areas and what actually matters. Three questions, not a form.' },
-    { n: '02', t: 'Sweep', d: 'HomeRadar watches agent portals, developer sites, newsletters and permitted channels, continuously.' },
+    { n: '02', t: 'Sweep', d: 'Public portals, agent portals, drawer sales, developer sites, newsletters and permitted social — swept continuously and merged into one feed.' },
     { n: '03', t: 'Understand', d: 'Every opportunity arrives with its lead time, why it fits you, and where the information came from.' }
   ];
 
@@ -2382,11 +2382,11 @@ function Landing({ user, hasRadar, onEnter, onSignIn }) {
             <RadarGlyph active />Property discovery, not another portal
           </span>
           <h1 className="mt-5 text-4xl font-bold leading-tight tracking-display text-navy-700 sm:text-5xl">
-            We find homes before they&apos;re public.
+            Every channel a home appears on. One radar.
           </h1>
           <p className="mt-5 max-w-lg text-lg leading-relaxed text-navy-500">
-            HomeRadar watches the channels where homes appear first, then tells you which ones fit you {'\u2014'} and shows
-            you exactly how early you are, with the receipts.
+            Public listings, drawer sales and homes still weeks from the market. HomeRadar matches them all against
+            your criteria, explains why each one fits, and tells you exactly how early you are.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             {user
@@ -2420,7 +2420,7 @@ function Landing({ user, hasRadar, onEnter, onSignIn }) {
         <div className="grid gap-6 sm:grid-cols-3">
           <div className="hr-card p-6">
             <p className="hr-label">Lead time</p>
-            <p className="mt-2 text-sm text-navy-600">Every opportunity shows how many days early you are, measured against its public listing date.</p>
+            <p className="mt-2 text-sm text-navy-600">Each home says whether it is still off-market, how many days early you are, or that it is already public.</p>
           </div>
           <div className="hr-card p-6">
             <p className="hr-label">Why it matches you</p>
@@ -2521,9 +2521,10 @@ function SignInPage({ onSignIn, onSignUp, onHome }) {
           <span className="rounded-[10px] ring-1 ring-white/25"><BrandMark size={36} /></span>
           <span className="font-bold tracking-display">HomeRadar</span>
         </button>
-        <h1 className="mt-16 max-w-sm text-4xl font-bold leading-tight tracking-display">We find homes before they're public.</h1>
+        <h1 className="mt-16 max-w-sm text-4xl font-bold leading-tight tracking-display">Every channel a home appears on. One radar.</h1>
         <p className="mt-4 max-w-sm text-navy-100">
-          HomeRadar watches agent portals, developer sites and permitted channels, then tells you what fits {'\u2014'} and why {'\u2014'} before it reaches the portals.
+          Public listings, drawer sales and coming-soon homes {'\u2014'} matched to your criteria, explained in plain words,
+          with the source and timing behind every one.
         </p>
         <BigRadar />
         <p className="absolute bottom-12 left-12 max-w-sm text-xs text-navy-200">We only use permitted, licensed or submitted sources.</p>
