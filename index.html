@@ -105,6 +105,8 @@ const api = {
   profile: () => request('/api/users/profile'),
   savePreferences: (preferences) => request('/api/users/preferences', { method: 'PUT', body: JSON.stringify({ preferences }) }),
   feedback: (payload) => request('/api/users/feedback', { method: 'POST', body: JSON.stringify(payload) }),
+  getFeedback: () => request('/api/users/feedback'),
+  undoFeedback: (propertyId) => request('/api/users/feedback/' + propertyId, { method: 'DELETE' }),
   dingeo: (id) => request('/api/properties/' + id + '/dingeo'),
   property: (id) => request('/api/properties/' + id),
   properties: async (query = {}) => {
@@ -2014,7 +2016,7 @@ function TokenInput({ value, onChange, placeholder, suggestions, transform, desc
   );
 }
 
-function RadarPage({ initial, setup, onSave, feedback }) {
+function RadarPage({ initial, setup, onSave, feedback, hiddenCount, onRestoreAll }) {
   const [prefs, setPrefs] = useState(initial || DEFAULT_PREFERENCES);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -2124,7 +2126,18 @@ function RadarPage({ initial, setup, onSave, feedback }) {
 
         <section className="hr-card mt-6 p-6 sm:p-8">
           <p className="hr-label">What HomeRadar has learned</p>
-          <p className="mt-2 text-sm text-navy-400">Learned from your decisions. It never overrides the criteria above.</p>
+
+          {hiddenCount > 0 && (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-control bg-navy-50 px-4 py-3">
+              <span className="text-sm text-navy-600">
+                <span className="font-semibold text-navy-700">{hiddenCount}</span> {hiddenCount === 1 ? 'listing is' : 'listings are'} hidden from your feed
+              </span>
+              <button type="button" onClick={onRestoreAll}
+                className="text-xs font-semibold text-navy-600 underline underline-offset-2 hover:text-navy-700">
+                Show them again
+              </button>
+            </div>
+          )}
           <ul className="mt-4 space-y-2">
             {Object.keys(prefs.weights).map((dim) => {
               const w = prefs.weights[dim];
@@ -2577,6 +2590,12 @@ function App() {
   const [feedbackLog, setFeedbackLog] = useState(() => {
     try { return JSON.parse(localStorage.getItem('homeradar_feedback') || '[]'); } catch (e) { return []; }
   });
+  // Mirrored locally so a dismissal is instant and survives an offline backend.
+  const [dismissed, setDismissed] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('homeradar_dismissed') || '[]'); } catch (e) { return []; }
+  });
+
+  useEffect(() => { localStorage.setItem('homeradar_dismissed', JSON.stringify(dismissed)); }, [dismissed]);
 
   useEffect(() => { localStorage.setItem('homeradar_feedback', JSON.stringify(feedbackLog)); }, [feedbackLog]);
 
@@ -2606,6 +2625,19 @@ function App() {
     return () => { cancelled = true; };
   }, []);
 
+  // Server-side dismissals win, so a "not for me" holds across devices.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    api.getFeedback()
+      .then((d) => {
+        if (cancelled || !d || !Array.isArray(d.dismissed)) return;
+        setDismissed(d.dismissed.map(String));
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [user]);
+
   // Load properties for the radar's areas
   const cityKey = prefs ? (prefs.areas || []).join(',') : '';
   useEffect(() => {
@@ -2626,19 +2658,26 @@ function App() {
   }, [user, cityKey, prefs]);
 
   const data = useMemo(() => {
-    if (!prefs) return { loading, error, eligible: [], nearMiss: [] };
+    if (!prefs) return { loading, error, eligible: [], nearMiss: [], dismissedCount: 0 };
     const all = buildOpportunities(rows, prefs);
+    const live = all.filter((o) => dismissed.indexOf(String(o.property.id)) === -1);
     return {
       loading, error,
-      eligible: sortOpportunities(all.filter((o) => o.match.eligible), 'lead'),
-      nearMiss: all.filter((o) => !o.match.eligible).sort((a, b) => b.match.score - a.match.score).slice(0, 12)
+      dismissedCount: all.length - live.length,
+      eligible: sortOpportunities(live.filter((o) => o.match.eligible), 'lead'),
+      nearMiss: live.filter((o) => !o.match.eligible).sort((a, b) => b.match.score - a.match.score).slice(0, 12)
     };
-  }, [rows, prefs, loading, error]);
+  }, [rows, prefs, loading, error, dismissed]);
 
-  const showToast = useCallback((msg) => {
-    setToast(msg);
-    window.setTimeout(() => setToast(null), 4000);
+  const showToast = useCallback((msg, action) => {
+    setToast({ msg, action });
+    window.setTimeout(() => setToast(null), action ? 7000 : 4000);
   }, []);
+
+  function restoreDismissed(id) {
+    setDismissed((cur) => cur.filter((x) => x !== String(id)));
+    api.undoFeedback(String(id)).catch(() => {});
+  }
 
   async function handleSignIn(email, password) {
     const res = await api.login(email, password);
@@ -2718,10 +2757,19 @@ function App() {
     };
     setFeedbackLog((log) => [entry].concat(log).slice(0, 50));
 
-    const label = listPhrase(inferred.map((d) => DIMENSION_NAMES[d] || d));
-    showToast(relevant
-      ? 'Learned: ' + label + ' matter to you. Ranking updated.'
-      : 'Noted: ' + label + ' was the problem. Similar homes will rank lower.');
+    // Phrased to read correctly whether one dimension or several were named.
+    const named = inferred.length ? listPhrase(inferred.map((d) => DIMENSION_NAMES[d] || d)) : null;
+    const propId = String(o.property.id);
+
+    if (relevant) {
+      showToast(named ? ('Learned: you value ' + named + '. Ranking updated.') : 'Noted. Ranking updated.');
+    } else {
+      // A rejected listing should leave the feed, not sit there being re-read.
+      setDismissed((cur) => cur.indexOf(propId) === -1 ? cur.concat([propId]) : cur);
+      showToast(named ? ('Hidden. Noted the issue with ' + named + '.') : 'Hidden from your feed.',
+        { label: 'Undo', run: () => restoreDismissed(propId) });
+      if (route.indexOf('/opportunity/') === 0) navigate('/discoveries');
+    }
 
     api.feedback({
       propertyId: String(o.property.id),
@@ -2776,7 +2824,14 @@ function App() {
   } else if (route.indexOf('/shortlist') === 0) {
     page = <ShortlistPage data={data} savedIds={savedIds} onToggle={toggleSaved} onOpen={openOpportunity} />;
   } else if (route.indexOf('/radar') === 0) {
-    page = <RadarPage initial={prefs} onSave={handleSavePrefs} feedback={feedbackLog} />;
+    page = <RadarPage initial={prefs} onSave={handleSavePrefs} feedback={feedbackLog}
+      hiddenCount={dismissed.length}
+      onRestoreAll={() => {
+        const ids = dismissed.slice();
+        setDismissed([]);
+        ids.forEach((id) => api.undoFeedback(id).catch(() => {}));
+        showToast(ids.length + (ids.length === 1 ? ' listing is' : ' listings are') + ' back on your radar.');
+      }} />;
   } else {
     page = <HomePage user={user} data={data} onOpen={openOpportunity} />;
   }
@@ -2792,8 +2847,14 @@ function App() {
       <AnimatePresence>
         {toast && (
           <motion.div role="status" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-24 left-1/2 z-30 -translate-x-1/2 rounded-control bg-navy-700 px-5 py-3 text-sm font-medium text-white shadow-lift lg:bottom-8">
-            {toast}
+            className="fixed bottom-24 left-1/2 z-30 flex -translate-x-1/2 items-center gap-4 rounded-control bg-navy-700 px-5 py-3 text-sm font-medium text-white shadow-lift lg:bottom-8">
+            <span>{toast.msg}</span>
+            {toast.action && (
+              <button type="button" onClick={() => { toast.action.run(); setToast(null); }}
+                className="shrink-0 font-semibold text-signal-500 underline underline-offset-2">
+                {toast.action.label}
+              </button>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
