@@ -416,28 +416,24 @@
 
         // Reassuring empty state: no match today isn't a dead end. Offer both paths -
         // loosen the criteria now, or let HomeRadar keep scanning and surface the match when it appears.
-        function NoMatches({ onAdjust }) {            return (
-                <div className="text-center py-16 px-6 border border-dashed border-gray-300 rounded-xl bg-brand-50/40">
-                    <div className="w-14 h-14 mx-auto mb-5 rounded-full bg-brand-100 flex items-center justify-center">
-                        <svg className="w-7 h-7 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+        function NoMatches({ onAdjust }) {
+            return (
+                <div className="max-w-md mx-auto text-center py-20 px-6">
+                    <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-brand-50 flex items-center justify-center">
+                        <svg className="w-8 h-8 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.6">
                             <circle cx="11" cy="11" r="7" />
                             <path strokeLinecap="round" d="M21 21l-4.3-4.3" />
                         </svg>
                     </div>
-                    <p className="text-lg font-semibold text-gray-900 mb-2">No matches just yet</p>
-                    <p className="text-sm text-gray-600 max-w-md mx-auto mb-2">
-                        Nothing on the market fits your criteria right now — but this isn't the end of the search.
+                    <h3 className="text-xl font-semibold text-gray-900 mb-3">No matches just yet</h3>
+                    <p className="text-sm text-gray-500 leading-relaxed mb-8">
+                        Nothing on the market fits your criteria right now. HomeRadar keeps scanning trusted
+                        property channels around the clock and will surface your perfect match the moment it appears.
                     </p>
-                    <p className="text-sm text-gray-600 max-w-md mx-auto mb-6">
-                        HomeRadar keeps scanning trusted property channels around the clock and will surface your
-                        perfect match the moment it appears. You can sit back and wait, or widen your search to see more now.
-                    </p>
-                    <div className="flex items-center justify-center gap-3 flex-wrap">
-                        <button onClick={onAdjust} className="px-5 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition">
-                            Adjust preferences
-                        </button>
-                        <span className="text-sm text-gray-500">or keep your criteria and we'll notify you</span>
-                    </div>
+                    <button onClick={onAdjust} className="w-full sm:w-auto px-6 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition">
+                        Adjust preferences
+                    </button>
+                    <p className="text-xs text-gray-400 mt-4">Or keep your criteria — we'll notify you when a match appears.</p>
                 </div>
             );
         }
