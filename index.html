@@ -206,26 +206,69 @@ const normaliseArea = (v) => (v || '').trim().toLocaleLowerCase('da-DK')
   .replace(/k\u00f8benhavn/g, 'copenhagen')
   .replace(/\u00e5rhus/g, 'aarhus');
 
+const POSTAL_AREA_NAMES = {
+  '1000':'Copenhagen','1050':'Copenhagen','1100':'Copenhagen','1150':'Copenhagen','1200':'Copenhagen','1250':'Copenhagen','1300':'Copenhagen','1350':'Copenhagen','1400':'Copenhagen','1450':'Copenhagen','1500':'Copenhagen',
+  '2000':'Frederiksberg','2100':'Copenhagen','2150':'Nordhavn','2200':'Copenhagen','2300':'Copenhagen','2400':'Copenhagen','2450':'Copenhagen','2500':'Valby','2600':'Glostrup','2610':'R\u00f8dovre','2620':'Albertslund','2630':'Taastrup','2650':'Hvidovre','2660':'Br\u00f8ndby Strand','2700':'Br\u00f8nsh\u00f8j','2720':'Vanl\u00f8se','2730':'Herlev','2800':'Kongens Lyngby',
+  '3000':'Helsing\u00f8r','3400':'Hiller\u00f8d','4000':'Roskilde','4100':'Ringsted','4200':'Slagelse','4300':'Holb\u00e6k','4600':'K\u00f8ge','4700':'N\u00e6stved','4800':'Nyk\u00f8bing Falster',
+  '5000':'Odense','5200':'Odense','5210':'Odense','5220':'Odense','5230':'Odense','5240':'Odense','5250':'Odense','5260':'Odense','5270':'Odense','5300':'Kerteminde','5500':'Middelfart','5600':'Faaborg','5700':'Svendborg','5800':'Nyborg',
+  '6000':'Kolding','6100':'Haderslev','6200':'Aabenraa','6300':'Gr\u00e5sten','6400':'S\u00f8nderborg','6500':'Vojens','6600':'Vejen','6700':'Esbjerg','6800':'Varde','6900':'Skjern',
+  '7000':'Fredericia','7100':'Vejle','7200':'Grindsted','7300':'Jelling','7400':'Herning','7500':'Holstebro','7600':'Struer','7700':'Thisted','7800':'Skive',
+  '8000':'Aarhus','8200':'Aarhus','8210':'Aarhus','8220':'Brabrand','8230':'Aarhus','8240':'Risskov','8250':'Eg\u00e5','8260':'Viby J','8270':'H\u00f8jbjerg','8300':'Odder','8400':'Ebeltoft','8500':'Grenaa','8600':'Silkeborg','8700':'Horsens','8800':'Viborg','8900':'Randers',
+  '9000':'Aalborg','9200':'Aalborg','9210':'Aalborg','9220':'Aalborg','9230':'Svenstrup J','9400':'N\u00f8rresundby','9500':'Hobro','9600':'Aars','9700':'Br\u00f8nderslev','9800':'Hj\u00f8rring','9900':'Frederikshavn'
+};
+
+const isPostalCode = (v) => /^\d{4}$/.test(String(v || '').trim());
+
+/** Accepts "odense", "2100", "koebenhavn" and returns a tidy display token. */
+function canonicalAreaName(value) {
+  const trimmed = String(value || '').trim();
+  if (!trimmed) return '';
+  if (isPostalCode(trimmed)) return trimmed;
+  return trimmed.toLocaleLowerCase('da-DK').replace(/(^|[\s-])\p{L}/gu, (m) => m.toLocaleUpperCase('da-DK'));
+}
+
+/** A postal code still needs a city name, because that is what the backend scraper resolves. */
+function areaToCityName(token) {
+  if (isPostalCode(token)) return POSTAL_AREA_NAMES[token] || null;
+  return token;
+}
+
 // Listings are stored under Danish names ("K\u00f8benhavn \u00d8"), so an English-only
 // query silently excludes almost the whole database.
 const CITY_QUERY_ALIASES = {
   copenhagen: ['Copenhagen', 'K\u00f8benhavn'],
   aarhus: ['Aarhus', '\u00c5rhus']
 };
-function cityQueryTerms(cities) {
+
+/** Resolves the user's area tokens into the city strings the backend understands. */
+function areasToCities(areas) {
   const out = [];
-  (cities || []).forEach((c) => {
+  (areas || []).forEach((a) => {
+    const city = areaToCityName(a);
+    if (city && out.indexOf(city) === -1) out.push(city);
+  });
+  return out;
+}
+
+function cityQueryTerms(areas) {
+  const out = [];
+  areasToCities(areas).forEach((c) => {
     const aliases = CITY_QUERY_ALIASES[normaliseArea(c)] || [c];
     aliases.forEach((a) => { if (out.indexOf(a) === -1) out.push(a); });
   });
   return out;
 }
-function areaMatches(p, cities) {
-  const targets = (cities || []).map(normaliseArea).filter(Boolean);
-  if (!targets.length) return true;
+function areaMatches(p, areas) {
+  const tokens = (areas || []).filter(Boolean);
+  if (!tokens.length) return true;
   const city = normaliseArea(p.city);
   const postal = (p.postal_code || '').trim();
-  return targets.some((t) => (city && (city === t || city.indexOf(t) !== -1 || t.indexOf(city) !== -1)) || (postal && postal === t));
+  return tokens.some((t) => {
+    // A postal code is the precise signal; a name is a broader contains-match.
+    if (isPostalCode(t)) return postal === t;
+    const n = normaliseArea(t);
+    return city && (city === n || city.indexOf(n) !== -1 || n.indexOf(city) !== -1);
+  });
 }
 
 function budgetDimension(p, prefs, ctx) {
@@ -298,7 +341,7 @@ function opportunityDimension(lead, sightings) {
 }
 
 function locationDimension(p, prefs) {
-  const inArea = areaMatches(p, prefs.cities);
+  const inArea = areaMatches(p, prefs.areas || prefs.cities);
   const where = p.city || p.postal_code || 'an unlisted area';
   return {
     dimension:'location',
@@ -333,19 +376,33 @@ function sizeDimension(p, prefs) {
   };
 }
 
+// Words too generic to be evidence of anything if they appear in a listing blurb.
+const BRIEF_STOPWORDS = ['and','the','with','that','have','want','need','would','like','close','near','some','more','room','home','house','flat','looking','prefer','must','also','for','from','into','very','good','nice'];
+
+function briefTerms(notes) {
+  return String(notes || '')
+    .toLocaleLowerCase('da-DK')
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((w) => w.length > 3 && BRIEF_STOPWORDS.indexOf(w) === -1)
+    .slice(0, 12);
+}
+
 function featureDimension(p, prefs) {
-  const wanted = (prefs.features || []).filter(Boolean);
+  const chips = (prefs.features || []).filter(Boolean);
+  const terms = briefTerms(prefs.notes);
+  const wanted = chips.concat(terms.filter((t) => chips.every((c) => c.toLocaleLowerCase('da-DK') !== t)));
+
   if (!wanted.length) return { dimension:'features', score:70, text:'No must-have features set, so this is not scored.', isCompromise:false };
   const hay = ((p.description || '') + ' ' + (p.property_type || '')).toLocaleLowerCase('da-DK');
   const hits = wanted.filter((f) => hay.indexOf(f.toLocaleLowerCase('da-DK')) !== -1);
   const ratio = hits.length / wanted.length;
   const score = Math.round(40 + ratio * 60);
-  if (!hits.length) return { dimension:'features', score, text:'None of your features (' + wanted.join(', ') + ') are mentioned in the listing.', isCompromise:true };
+  if (!hits.length) return { dimension:'features', score, text:'None of what you asked for (' + wanted.slice(0, 4).join(', ') + ') is mentioned in the listing.', isCompromise:true };
   const missing = wanted.filter((f) => hits.indexOf(f) === -1);
   return {
     dimension:'features',
     score,
-    text: missing.length ? ('Has ' + hits.join(', ') + '. No mention of ' + missing.join(', ') + '.')
+    text: missing.length ? ('Mentions ' + hits.join(', ') + '. No mention of ' + missing.slice(0, 4).join(', ') + '.')
                          : ('Mentions everything you asked for: ' + hits.join(', ') + '.'),
     isCompromise: missing.length > 0 && ratio < 0.5
   };
@@ -354,7 +411,7 @@ function featureDimension(p, prefs) {
 function hardConstraintFailure(p, prefs) {
   const price = num(p.price);
   if (price !== null && price > prefs.budget.max) return fmtK(price - prefs.budget.max) + ' over your budget ceiling';
-  if (!areaMatches(p, prefs.cities)) return (p.city || 'This area') + ' is not on your radar';
+  if (!areaMatches(p, prefs.areas || prefs.cities)) return (p.city || 'This area') + ' is not on your radar';
   if (prefs.sizeMode === 'size' && prefs.minSize) {
     const sqm = num(p.sqm);
     if (sqm !== null && sqm < prefs.minSize) return Math.round(prefs.minSize - sqm) + ' m\u00B2 under your minimum';
@@ -607,24 +664,37 @@ function listPhrase(items) {
 
 const DEFAULT_PREFERENCES = {
   budget: { min: 1000000, max: 5000000 },
+  areas: ['Copenhagen'],
   cities: ['Copenhagen'],
   sizeMode: 'size',
   minSize: 80,
-  minRooms: null,
+  minRooms: 3,
   features: ['Garden'],
+  notes: '',
   weights: { budget: 1, location: 1, size: 1, features: 1, opportunity: 1 },
   consent: { criteria: true, explicitFeedback: true, behaviour: false }
 };
 
+/** `cities` is what the backend scraper consumes, so always derive it from `areas`. */
+function withDerivedCities(prefs) {
+  const areas = (prefs.areas || []).filter(Boolean);
+  return Object.assign({}, prefs, { areas, cities: areasToCities(areas) });
+}
+
 function normalisePrefs(input) {
   if (!input) return null;
-  return Object.assign({}, DEFAULT_PREFERENCES, input, {
+  // Accounts created before free-text areas existed only have `cities`.
+  const areas = (Array.isArray(input.areas) && input.areas.length)
+    ? input.areas
+    : (Array.isArray(input.cities) && input.cities.length ? input.cities : DEFAULT_PREFERENCES.areas);
+  return withDerivedCities(Object.assign({}, DEFAULT_PREFERENCES, input, {
     budget: Object.assign({}, DEFAULT_PREFERENCES.budget, input.budget || {}),
     weights: Object.assign({}, DEFAULT_PREFERENCES.weights, input.weights || {}),
     consent: Object.assign({}, DEFAULT_PREFERENCES.consent, input.consent || {}),
-    cities: (Array.isArray(input.cities) && input.cities.length) ? input.cities : DEFAULT_PREFERENCES.cities,
-    features: Array.isArray(input.features) ? input.features : []
-  });
+    areas: areas.map(canonicalAreaName).filter(Boolean),
+    features: Array.isArray(input.features) ? input.features : [],
+    notes: typeof input.notes === 'string' ? input.notes : ''
+  }));
 }
 
 /* ============================================================
@@ -1874,7 +1944,7 @@ function ShortlistPage({ data, savedIds, onToggle, onOpen }) {
 }
 
 /* ---------- Your Radar ---------- */
-const SUGGESTED_AREAS = ['Copenhagen', 'Frederiksberg', 'Valby', 'Amager', 'R\u00f8dovre', 'Aarhus'];
+const SUGGESTED_AREAS = ['Copenhagen', 'Frederiksberg', 'Aarhus', 'Odense', 'Aalborg', 'Roskilde'];
 const SUGGESTED_FEATURES = ['Garden', 'Balcony', 'Parking', 'Terrace', 'Renovated', 'Sea view'];
 
 function ConsentRow({ label, help, checked, disabled, onChange }) {
@@ -1889,18 +1959,74 @@ function ConsentRow({ label, help, checked, disabled, onChange }) {
   );
 }
 
+/** Free-text city or postcode entry, with suggestions and removable chips. */
+function TokenInput({ value, onChange, placeholder, suggestions, transform, describe }) {
+  const [draft, setDraft] = useState('');
+
+  const add = (raw) => {
+    const v = transform ? transform(raw) : String(raw || '').trim();
+    if (!v) { setDraft(''); return; }
+    if (!value.some((x) => x.toLocaleLowerCase('da-DK') === v.toLocaleLowerCase('da-DK'))) onChange(value.concat([v]));
+    setDraft('');
+  };
+  const remove = (v) => onChange(value.filter((x) => x !== v));
+
+  return (
+    <div>
+      <div className="flex gap-2">
+        <input type="text" value={draft} placeholder={placeholder}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(draft); } }}
+          className="flex-1 rounded-control border border-navy-200 px-4 py-3 text-sm" />
+        <button type="button" onClick={() => add(draft)}
+          className="rounded-control bg-navy-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-navy-600">
+          Add
+        </button>
+      </div>
+
+      {suggestions && suggestions.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {suggestions.map((s) => {
+            const on = value.some((x) => x.toLocaleLowerCase('da-DK') === s.toLocaleLowerCase('da-DK'));
+            return (
+              <button key={s} type="button" onClick={() => on ? remove(s) : add(s)} aria-pressed={on}
+                className={'rounded-full px-4 py-2 text-sm font-medium transition ' +
+                  (on ? 'bg-navy-700 text-white' : 'bg-white text-navy-500 ring-1 ring-navy-200 hover:ring-navy-400')}>
+                {s}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {value.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {value.map((v) => (
+            <span key={v} className="flex items-center gap-2 rounded-full bg-navy-50 px-3 py-1.5 text-sm font-medium text-navy-700 ring-1 ring-navy-100">
+              {v}{describe && describe(v) ? <span className="text-xs font-normal text-navy-400">{describe(v)}</span> : null}
+              <button type="button" onClick={() => remove(v)} aria-label={'Remove ' + v}
+                className="text-navy-300 transition hover:text-navy-700">{'\u00D7'}</button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function RadarPage({ initial, setup, onSave, feedback }) {
   const [prefs, setPrefs] = useState(initial || DEFAULT_PREFERENCES);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
   const update = (patch) => setPrefs((c) => Object.assign({}, c, patch));
-  const toggle = (list, v) => list.indexOf(v) !== -1 ? list.filter((x) => x !== v) : list.concat([v]);
 
   async function save() {
-    if (!prefs.cities.length) { setError('Add at least one area so the radar knows where to look.'); return; }
+    if (!prefs.areas.length) { setError('Add at least one area so the radar knows where to look.'); return; }
+    const unknown = prefs.areas.filter((a) => isPostalCode(a) && !POSTAL_AREA_NAMES[a]);
+    if (unknown.length) { setError('We do not recognise postcode ' + unknown[0] + '. Try the city name instead.'); return; }
     setBusy(true); setError(null);
-    try { await onSave(prefs); }
+    try { await onSave(withDerivedCities(prefs)); }
     catch (e) { setError(e.message); }
     finally { setBusy(false); }
   }
@@ -1929,31 +2055,43 @@ function RadarPage({ initial, setup, onSave, feedback }) {
 
           <div className="mt-6">
             <span className="text-sm font-medium text-navy-600">Areas</span>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {SUGGESTED_AREAS.map((a) => (
-                <button key={a} type="button" onClick={() => update({ cities: toggle(prefs.cities, a) })} aria-pressed={prefs.cities.indexOf(a) !== -1}
-                  className={'rounded-full px-4 py-2 text-sm font-medium transition ' +
-                    (prefs.cities.indexOf(a) !== -1 ? 'bg-navy-700 text-white' : 'bg-white text-navy-500 ring-1 ring-navy-200 hover:ring-navy-400')}>
-                  {a}
-                </button>
-              ))}
+            <p className="mt-1 text-xs text-navy-400">
+              Type any Danish city or a 4-digit postcode. A postcode narrows the radar to that district exactly.
+            </p>
+            <div className="mt-3">
+              <TokenInput
+                value={prefs.areas}
+                onChange={(areas) => update({ areas })}
+                placeholder="e.g. Odense, Aarhus or 2100"
+                suggestions={SUGGESTED_AREAS}
+                transform={canonicalAreaName}
+                describe={(v) => isPostalCode(v) ? (POSTAL_AREA_NAMES[v] ? ('\u00B7 ' + POSTAL_AREA_NAMES[v]) : '\u00B7 unknown postcode') : ''} />
             </div>
           </div>
 
-          <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            <label className="block">
-              <span className="text-sm font-medium text-navy-600">Measure by</span>
-              <select value={prefs.sizeMode} onChange={(e) => update({ sizeMode: e.target.value })}
-                className="mt-1.5 w-full rounded-control border border-navy-200 px-4 py-3 text-sm">
-                <option value="size">Floor area (m2)</option>
-                <option value="rooms">Number of rooms</option>
-              </select>
-            </label>
-            <label className="block">
-              <span className="text-sm font-medium text-navy-600">{prefs.sizeMode === 'size' ? 'Minimum m\u00B2' : 'Minimum rooms'}</span>
-              <input type="number" min="0"
-                value={prefs.sizeMode === 'size' ? (prefs.minSize || 0) : (prefs.minRooms || 0)}
-                onChange={(e) => update(prefs.sizeMode === 'size' ? { minSize: Number(e.target.value) } : { minRooms: Number(e.target.value) })}
+          <div className="mt-6">
+            <span className="text-sm font-medium text-navy-600">Measure the home by</span>
+            <div className="mt-2 flex flex-wrap gap-6">
+              <label className="flex items-center gap-2 text-sm text-navy-700">
+                <input type="radio" name="sizeMode" checked={prefs.sizeMode === 'size'}
+                  onChange={() => update({ sizeMode: 'size' })} className="h-4 w-4" />
+                Floor area (m{'\u00B2'})
+              </label>
+              <label className="flex items-center gap-2 text-sm text-navy-700">
+                <input type="radio" name="sizeMode" checked={prefs.sizeMode === 'rooms'}
+                  onChange={() => update({ sizeMode: 'rooms' })} className="h-4 w-4" />
+                Number of rooms
+              </label>
+            </div>
+            <label className="mt-3 block max-w-xs">
+              <span className="text-xs font-medium text-navy-500">
+                {prefs.sizeMode === 'size' ? 'Minimum m\u00B2' : 'Minimum rooms'}
+              </span>
+              <input type="number" min={prefs.sizeMode === 'size' ? 0 : 1}
+                value={prefs.sizeMode === 'size' ? (prefs.minSize || 0) : (prefs.minRooms || 1)}
+                onChange={(e) => update(prefs.sizeMode === 'size'
+                  ? { minSize: Number(e.target.value) }
+                  : { minRooms: Number(e.target.value) })}
                 className="mt-1.5 w-full rounded-control border border-navy-200 px-4 py-3 text-sm" />
             </label>
           </div>
@@ -1961,15 +2099,27 @@ function RadarPage({ initial, setup, onSave, feedback }) {
 
         <section className="hr-card mt-6 p-6 sm:p-8">
           <p className="hr-label">Preferences</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {SUGGESTED_FEATURES.map((f) => (
-              <button key={f} type="button" onClick={() => update({ features: toggle(prefs.features, f) })} aria-pressed={prefs.features.indexOf(f) !== -1}
-                className={'rounded-full px-4 py-2 text-sm font-medium transition ' +
-                  (prefs.features.indexOf(f) !== -1 ? 'bg-navy-700 text-white' : 'bg-white text-navy-500 ring-1 ring-navy-200 hover:ring-navy-400')}>
-                {f}
-              </button>
-            ))}
+          <p className="mt-2 text-sm text-navy-400">
+            Soft signals. They shape ranking but never exclude a home.
+          </p>
+
+          <div className="mt-4">
+            <TokenInput
+              value={prefs.features}
+              onChange={(features) => update({ features })}
+              placeholder="Add your own, e.g. Sea view"
+              suggestions={SUGGESTED_FEATURES} />
           </div>
+
+          <label className="mt-6 block">
+            <span className="text-sm font-medium text-navy-600">Anything else that matters?</span>
+            <textarea rows="4" value={prefs.notes} onChange={(e) => update({ notes: e.target.value })}
+              placeholder="e.g. Ground floor is fine, but I want a quiet street and space for a home office."
+              className="mt-1.5 w-full rounded-control border border-navy-200 px-4 py-3 text-sm" />
+            <span className="mt-1.5 block text-xs text-navy-400">
+              HomeRadar reads this for the words it can check against a listing, and says which ones it found.
+            </span>
+          </label>
         </section>
 
         <section className="hr-card mt-6 p-6 sm:p-8">
@@ -2457,13 +2607,13 @@ function App() {
   }, []);
 
   // Load properties for the radar's areas
-  const cityKey = prefs ? prefs.cities.join(',') : '';
+  const cityKey = prefs ? (prefs.areas || []).join(',') : '';
   useEffect(() => {
     if (!user || !prefs) return;
     let cancelled = false;
     setLoading(true); setError(null);
-    const targets = prefs.cities.length ? cityQueryTerms(prefs.cities) : [''];
-    Promise.all(targets.map((c) => api.properties({ city: c || undefined, limit: 60 }).catch(() => [])))
+    const targets = cityQueryTerms(prefs.areas);
+    Promise.all((targets.length ? targets : ['']).map((c) => api.properties({ city: c || undefined, limit: 60 }).catch(() => [])))
       .then((batches) => {
         if (cancelled) return;
         const merged = {};
