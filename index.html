@@ -92,6 +92,8 @@
         }
         .hr-float { animation: hr-float 4s ease-in-out infinite; }
         .hr-float-slow { animation: hr-float 6s ease-in-out infinite; }
+        @keyframes hr-spin { to { transform: rotate(360deg); } }
+        .hr-spin { animation: hr-spin 1s linear infinite; transform-origin: center; }
     </style>
 </head>
 <body class="bg-[#FAF9F6]">
@@ -192,6 +194,10 @@
         };
 
         const sameArea = (left, right) => left.localeCompare(right, 'da-DK', { sensitivity: 'base' }) === 0;
+
+        // How long after saving preferences we show "still scanning" (rather than "no matches"),
+        // to cover the background scraper finishing its first pass across the property channels.
+        const FIRST_SCAN_WINDOW_MS = 90000;
 
         // Maps free-text feedback to the four scoring dimensions, so a user's written reason
         // (e.g. "too close to a noisy street") actually steers what we learn instead of nudging
@@ -389,10 +395,28 @@
             );
         }
 
+        // Shown for a short window right after saving preferences, while the background scraper
+        // does its first pass — so a not-yet-populated feed reads as "working", not "nothing found".
+        function Scanning() {
+            return (
+                <div className="text-center py-16 px-6 border border-dashed border-brand-200 rounded-xl bg-brand-50/40">
+                    <div className="w-14 h-14 mx-auto mb-5 rounded-full bg-brand-100 flex items-center justify-center">
+                        <svg className="w-7 h-7 text-brand-600 hr-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+                            <path strokeLinecap="round" d="M12 3a9 9 0 1 0 9 9" />
+                        </svg>
+                    </div>
+                    <p className="text-lg font-semibold text-gray-900 mb-2">Scanning trusted channels…</p>
+                    <p className="text-sm text-gray-600 max-w-md mx-auto">
+                        HomeRadar is searching for homes that match your criteria right now. New matches will appear
+                        here automatically as soon as they're found — no need to refresh.
+                    </p>
+                </div>
+            );
+        }
+
         // Reassuring empty state: no match today isn't a dead end. Offer both paths -
         // loosen the criteria now, or let HomeRadar keep scanning and surface the match when it appears.
-        function NoMatches({ onAdjust }) {
-            return (
+        function NoMatches({ onAdjust }) {            return (
                 <div className="text-center py-16 px-6 border border-dashed border-gray-300 rounded-xl bg-brand-50/40">
                     <div className="w-14 h-14 mx-auto mb-5 rounded-full bg-brand-100 flex items-center justify-center">
                         <svg className="w-7 h-7 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
@@ -641,6 +665,18 @@
             const [detailsLoading, setDetailsLoading] = useState(false);
             const [dingeoInsights, setDingeoInsights] = useState(null);
             const [dingeoLoading, setDingeoLoading] = useState(false);
+
+            // Timestamp of the last preferences save; while inside FIRST_SCAN_WINDOW_MS we show a
+            // "still scanning" state instead of "no matches", so the first moment isn't discouraging.
+            const [scanStartedAt, setScanStartedAt] = useState(null);
+            const isFirstScan = !!scanStartedAt;
+            useEffect(() => {
+                if (!scanStartedAt) return;
+                const remaining = FIRST_SCAN_WINDOW_MS - (Date.now() - scanStartedAt);
+                if (remaining <= 0) { setScanStartedAt(null); return; }
+                const t = setTimeout(() => setScanStartedAt(null), remaining);
+                return () => clearTimeout(t);
+            }, [scanStartedAt]);
 
             // Lazily fetches the full listing (description, bathrooms, energy label, monthly
             // expense, lot size, and the agent's real phone/email) the first time it's opened,
@@ -948,6 +984,7 @@
                     cities: (criteria.cities || preferences.cities || []).map(canonicalAreaName).filter(Boolean)
                 };
                 setShowSearchingModal(true);
+                setScanStartedAt(Date.now());
                 const propertyMatchesCriteria = (property) => {
                     const price = Number(property.price) || 0;
                     const areaMatch = (merged.cities || []).some(area => matchesArea(area, property));
@@ -1699,7 +1736,7 @@
                                     )}
 
                                     {!propertiesLoading && !propertiesError && matchedProperties.length === 0 && (
-                                        <NoMatches onAdjust={() => setSelectedView('profile')} />
+                                        isFirstScan ? <Scanning /> : <NoMatches onAdjust={() => setSelectedView('profile')} />
                                     )}
 
                                     <div className="grid grid-cols-2 gap-8">
@@ -1725,7 +1762,7 @@
                                 <h1 className="text-3xl font-bold text-gray-900 mb-8">Matches</h1>
 
                                 {!propertiesLoading && !propertiesError && matchedProperties.length === 0 && (
-                                    <NoMatches onAdjust={() => setSelectedView('profile')} />
+                                    isFirstScan ? <Scanning /> : <NoMatches onAdjust={() => setSelectedView('profile')} />
                                 )}
 
                                 <div className="grid grid-cols-2 gap-8">
